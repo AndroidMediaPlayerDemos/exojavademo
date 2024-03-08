@@ -7,10 +7,10 @@
     tools:context=".MainActivity">
 
     <androidx.media3.ui.PlayerView
-        android:id="@+id/playerView"
+        android:id="@+id/player_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:show_buffering="when_playing"
-        app:show_shuffle_button="true"/>
-
+        android:keepScreenOn="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>
