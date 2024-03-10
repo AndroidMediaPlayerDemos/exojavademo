@@ -10,15 +10,16 @@ import androidx.annotation.NonNull;
 import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.Player;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.common.util.Util;
-import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.analytics.AnalyticsListener;
-import androidx.media3.exoplayer.source.ProgressiveMediaSource;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter;
 import androidx.media3.ui.PlayerView;
@@ -28,13 +29,12 @@ public class MainActivity extends AppCompatActivity {
     private PlayerView playerView;
     private ExoPlayer player;
 
-    private DefaultTrackSelector trackSelector;
-
-
     @OptIn(markerClass = UnstableApi.class)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        playerView = findViewById(R.id.player_view);
 
         ApplicationInfo applicationInfo;
         String applicationName;
@@ -46,26 +46,56 @@ public class MainActivity extends AppCompatActivity {
             applicationName = "com.example.exo_java_demo";
         }
 
-        setContentView(R.layout.activity_main);
-        HttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory().setUserAgent(Util.getUserAgent(this, applicationName)).setTransferListener(new DefaultBandwidthMeter.Builder(this).build());
+        DataSource.Factory dataSourceFactory = () -> {
+            HttpDataSource dataSource = new DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true).createDataSource();
+//            dataSource.setRequestProperty("Authorization", "");
+            return dataSource;
+        };
 
-        // 创建 DefaultDataSourceFactory
-        DefaultDataSource.Factory defaultSourceFactory = new DefaultDataSource.Factory(this, httpDataSourceFactory);
+        DefaultMediaSourceFactory mediaSourceFactory = new DefaultMediaSourceFactory(dataSourceFactory);
+        DefaultBandwidthMeter bandwidthMeter = new DefaultBandwidthMeter.Builder(this).build();
+        // 创建一个默认的 LoadControl
+        DefaultLoadControl loadControl = new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                        60000, // 增加最大缓冲时间到60秒
+                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
+                .build();
+        DefaultTrackSelector trackSelector = new DefaultTrackSelector(this);
+        // trackSelector.setParameters(
+        //        trackSelector.buildUponParameters().setAllowVideoMixedMimeTypeAdaptiveness(true));
 
-        trackSelector = new DefaultTrackSelector(this);
-        playerView = findViewById(R.id.player_view);
-        player = new ExoPlayer.Builder(this).setTrackSelector(trackSelector).build();
+        // 配置期望的视频分辨率为720p
+        DefaultTrackSelector.Parameters parameters = trackSelector.buildUponParameters()
+                .setMaxVideoSize(1280, 720) // 设置最大分辨率为1280x720
+                .setForceHighestSupportedBitrate(true) // 可选，如果你想要最高的比特率轨道
+                .build();
+        // 应用这些参数到 trackSelector
+        trackSelector.setParameters(parameters);
+
+        player = new ExoPlayer.Builder(this).setLoadControl(loadControl).setMediaSourceFactory(mediaSourceFactory).setBandwidthMeter(bandwidthMeter).setTrackSelector(trackSelector).build();
         playerView.setPlayer(player);
 
         for (String uri : VIDEO_URIS) {
-            MediaItem mediaItem = MediaItem.fromUri(uri);
-            ProgressiveMediaSource mediaSource = new ProgressiveMediaSource.Factory(defaultSourceFactory)
-                    .createMediaSource(mediaItem);
-            player.setMediaSource(mediaSource);
+            player.addMediaItem(MediaItem.fromUri(uri));
         }
         // Prepare the player.
         player.prepare();
 
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onIsPlayingChanged(boolean isPlaying) {
+                if (isPlaying) {
+                    // Active playback.
+                } else {
+                    // Not playing because playback is paused, ended, suppressed, or the player
+                    // is buffering, stopped or failed. Check player.getPlayWhenReady,
+                    // player.getPlaybackState, player.getPlaybackSuppressionReason and
+                    // player.getPlaybackError for details.
+                }
+            }
+        });
         player.addAnalyticsListener(new AnalyticsListener() {
             @Override
             public void onVideoSizeChanged(EventTime eventTime, VideoSize videoSize) {
@@ -77,8 +107,6 @@ public class MainActivity extends AppCompatActivity {
                 playerView.setLayoutParams(params);
             }
         });
-        // Start the playback.
-        player.play();
     }
 
     @Override
@@ -98,8 +126,20 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        player.release();
         super.onDestroy();
-        super.onDestroy();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        player.setPlayWhenReady(true);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        player.stop();
         player.release();
     }
 }
