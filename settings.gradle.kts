@@ -15,4 +15,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "exo-java-demo"
 include(":app")
- 
