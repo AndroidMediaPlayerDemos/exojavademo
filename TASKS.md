@@ -24,7 +24,7 @@
 - [ ] **T1.2 验收问题修复**（估时视 T1.1 结果而定）
   已知薄弱点：`MediaPlayerActivity` / `WebViewActivity` 错误处理仅有 `printStackTrace`（见 PRD 技术债）。
 
-- [ ] **T1.3 分批提交与推送**（0.5 人日）
+- [x] **T1.3 分批提交与推送**（0.5 人日）
   建议按文件边界拆分：① AIDL 自托管（`MyService`、`aidl/`、manifest 服务与 `<queries>`、gradle `aidl`）② `MediaPlayerActivity` 及布局 ③ `WebViewActivity` 及布局 ④ 主界面入口改造（`activity_main.xml`、`strings.xml`）⑤ 文档（`PRD.md`、`TASKS.md`）。
 
 - [ ] **T1.4 跨应用绑定验证**（0.5 人日，可选）
