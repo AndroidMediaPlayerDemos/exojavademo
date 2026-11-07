@@ -3,8 +3,13 @@
 
     <string name="btn_speed">倍速播放</string>
     <string name="btn_source">播放源</string>
+    <string name="btn_tracks">画质 / 音轨</string>
     <string name="btn_mediaplayer">MediaPlayer 播放</string>
     <string name="btn_sharepoint">SharePoint 认证实验</string>
+
+    <string name="tracks_none">当前源没有可选画质/音轨</string>
+    <string name="tracks_video_auto">画质：自动</string>
+    <string name="tracks_audio_auto">音轨：自动</string>
 
     <string name="source_url_hint">输入 http(s) 视频地址</string>
     <string name="btn_load_source">加载此地址</string>

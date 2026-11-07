@@ -14,10 +14,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.media3.common.C;
+import androidx.media3.common.Format;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.Tracks;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -26,7 +31,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.service.IMyAidlInterface;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
@@ -89,6 +96,7 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.button).setOnClickListener(v -> speedDialog.show());
         findViewById(R.id.btn_source).setOnClickListener(v -> showSourceDialog());
+        findViewById(R.id.btn_tracks).setOnClickListener(v -> showTracksDialog());
         findViewById(R.id.btn_mediaplayer).setOnClickListener(v ->
                 startActivity(new Intent(this, MediaPlayerActivity.class)));
         findViewById(R.id.btn_sharepoint).setOnClickListener(v ->
@@ -163,6 +171,133 @@ public class MainActivity extends AppCompatActivity {
         player.setPlayWhenReady(true);
         sourceRepository.addToHistory(url);
         Toast.makeText(this, getString(R.string.source_loading, url), Toast.LENGTH_SHORT).show();
+    }
+
+    private void showTracksDialog() {
+        List<TrackAdapter.Option> options = buildTrackOptions();
+        if (options.isEmpty()) {
+            Toast.makeText(this, R.string.tracks_none, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_speed); // 复用单列表布局
+        RecyclerView recyclerView = dialog.findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(new TrackAdapter(options, option -> {
+            applyTrackSelection(option);
+            dialog.dismiss();
+        }));
+        dialog.show();
+    }
+
+    /**
+     * 当前源的可选档位：视频（画质）与音频各带一个「自动」档，
+     * 仅列出设备支持的轨道，勾选当前覆盖中的轨道。
+     */
+    private List<TrackAdapter.Option> buildTrackOptions() {
+        List<TrackAdapter.Option> options = new ArrayList<>();
+        if (player == null) {
+            return options;
+        }
+        List<TrackAdapter.Option> videoOptions = new ArrayList<>();
+        List<TrackAdapter.Option> audioOptions = new ArrayList<>();
+        Tracks tracks = player.getCurrentTracks();
+        for (Tracks.Group group : tracks.getGroups()) {
+            if (group.getType() != C.TRACK_TYPE_VIDEO && group.getType() != C.TRACK_TYPE_AUDIO) {
+                continue;
+            }
+            for (int i = 0; i < group.length; i++) {
+                if (!group.isTrackSupported(i)) {
+                    continue;
+                }
+                List<TrackAdapter.Option> target =
+                        group.getType() == C.TRACK_TYPE_VIDEO ? videoOptions : audioOptions;
+                target.add(new TrackAdapter.Option(group.getType(), group, i,
+                        buildTrackLabel(group.getTrackFormat(i), group.getType()),
+                        isOverridden(group, i)));
+            }
+        }
+        if (!videoOptions.isEmpty()) {
+            options.add(TrackAdapter.Option.auto(C.TRACK_TYPE_VIDEO,
+                    getString(R.string.tracks_video_auto),
+                    !hasOverrideOfType(C.TRACK_TYPE_VIDEO)));
+            options.addAll(videoOptions);
+        }
+        if (!audioOptions.isEmpty()) {
+            options.add(TrackAdapter.Option.auto(C.TRACK_TYPE_AUDIO,
+                    getString(R.string.tracks_audio_auto),
+                    !hasOverrideOfType(C.TRACK_TYPE_AUDIO)));
+            options.addAll(audioOptions);
+        }
+        return options;
+    }
+
+    /** 轨道显示名：视频用 分辨率 + 码率，音频用 标签/语言 + 声道数。 */
+    private String buildTrackLabel(Format format, int trackType) {
+        StringBuilder builder = new StringBuilder();
+        if (trackType == C.TRACK_TYPE_VIDEO) {
+            if (format.height > 0) {
+                builder.append(format.height).append("p");
+            }
+            if (format.bitrate > Format.NO_VALUE) {
+                if (builder.length() > 0) {
+                    builder.append(" · ");
+                }
+                builder.append(Math.round(format.bitrate / 1000f)).append(" kbps");
+            }
+        } else {
+            if (format.label != null) {
+                builder.append(format.label);
+            } else if (format.language != null) {
+                builder.append(new Locale(format.language).getDisplayLanguage());
+            }
+            if (format.channelCount > 0) {
+                if (builder.length() > 0) {
+                    builder.append(" · ");
+                }
+                builder.append(format.channelCount).append(" 声道");
+            }
+        }
+        if (builder.length() == 0) {
+            builder.append(trackType == C.TRACK_TYPE_VIDEO ? "视频轨" : "音轨");
+        }
+        return builder.toString();
+    }
+
+    private boolean hasOverrideOfType(int trackType) {
+        for (TrackSelectionOverride override
+                : player.getTrackSelectionParameters().overrides.values()) {
+            if (override.getType() == trackType) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isOverridden(Tracks.Group group, int trackIndex) {
+        for (TrackSelectionOverride override
+                : player.getTrackSelectionParameters().overrides.values()) {
+            if (override.mediaTrackGroup.equals(group.getMediaTrackGroup())
+                    && override.trackIndices.contains(trackIndex)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 应用选择：自动 = 清除该类型覆盖；具体轨 = 以 TrackSelectionOverride 固定该轨。 */
+    private void applyTrackSelection(TrackAdapter.Option option) {
+        TrackSelectionParameters.Builder builder =
+                player.getTrackSelectionParameters().buildUpon();
+        if (option.isAuto) {
+            builder.clearOverridesOfType(option.trackType);
+        } else {
+            builder.clearOverridesOfType(option.trackType)
+                    .setOverrideForType(new TrackSelectionOverride(
+                            option.group.getMediaTrackGroup(),
+                            Collections.singletonList(option.trackIndex)));
+        }
+        player.setTrackSelectionParameters(builder.build());
     }
 
     @Override
