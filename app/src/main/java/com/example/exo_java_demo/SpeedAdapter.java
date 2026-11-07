@@ -58,13 +58,10 @@ public class SpeedAdapter extends RecyclerView.Adapter<SpeedAdapter.SpeedViewHol
             super(itemView);
             tvSpeed = itemView.findViewById(R.id.tvSpeed);
             ivCheckMark = itemView.findViewById(R.id.ivCheckMark);
-            itemView.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    String value = tvSpeed.getText().toString();
-                    value = value.substring(0, value.length() - 1);
-                    onItemClickListener.onItemClick(Float.parseFloat(value));
-                }
+            itemView.setOnClickListener(v -> {
+                String value = tvSpeed.getText().toString();
+                value = value.substring(0, value.length() - 1);
+                onItemClickListener.onItemClick(Float.parseFloat(value));
             });
         }
     }
