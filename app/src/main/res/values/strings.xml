@@ -1,3 +1,19 @@
 <resources>
     <string name="app_name">exo-java-demo</string>
+
+    <string name="btn_speed">倍速播放</string>
+    <string name="btn_mediaplayer">MediaPlayer 播放</string>
+    <string name="btn_sharepoint">SharePoint 认证实验</string>
+
+    <string name="aidl_connecting">AIDL: 正在连接本应用服务…</string>
+    <string name="aidl_bind_failed">AIDL: 服务绑定失败</string>
+    <string name="aidl_result">AIDL: add(5, 6) = %1$d</string>
+    <string name="aidl_error">AIDL: 调用失败（%1$s）</string>
+
+    <string name="url_hint">https://你的企业站点.sharepoint.com/</string>
+    <string name="btn_load">打开</string>
+    <string name="cookie_idle">输入企业站点地址并打开，登录后自动检查认证 Cookie</string>
+    <string name="cookie_checking">正在加载页面并检查认证 Cookie…</string>
+    <string name="cookie_found">已检测到认证 Cookie：rtFa=%1$b · FedAuth=%2$b</string>
+    <string name="cookie_missing">未检测到 rtFa / FedAuth（尚未登录，或不是 SharePoint 站点）</string>
 </resources>
