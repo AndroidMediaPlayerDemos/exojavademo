@@ -2,10 +2,17 @@
     <string name="app_name">exo-java-demo</string>
 
     <string name="btn_speed">倍速播放</string>
+    <string name="btn_rewind">后退 10s</string>
+    <string name="btn_forward">前进 10s</string>
     <string name="btn_source">播放源</string>
     <string name="btn_tracks">画质 / 音轨</string>
     <string name="btn_mediaplayer">MediaPlayer 播放</string>
     <string name="btn_sharepoint">SharePoint 认证实验</string>
+    <string name="btn_retry">重试</string>
+
+    <string name="gesture_seek_target">跳转至 %1$s</string>
+    <string name="gesture_volume">音量 %1$d%%</string>
+    <string name="gesture_brightness">亮度 %1$d%%</string>
 
     <string name="tracks_none">当前源没有可选画质/音轨</string>
     <string name="tracks_video_auto">画质：自动</string>
