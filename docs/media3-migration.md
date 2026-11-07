@@ -32,15 +32,15 @@
   2.x 的聚合 artifact 含 HLS/DASH，Media3 拆分为独立模块，勿漏）
 ```
 
-⚠️ **连带升级（评估的主要发现）**：Media3 1.5+ 基于 compileSdk 35 构建，而当前 AGP 8.3.0 最高支持 compileSdk 34。因此需同步：
+⚠️ **连带升级（评估的主要发现）**：Media3 1.11.1 的 AAR 元数据要求 compileSdk 36（评估时按 1.5 时代资料估的 35，实测 `checkDebugAarMetadata` 报错后修正）。因此需同步：
 
-| 组件 | 现值 | 目标值 |
+| 组件 | 原值 | 目标值（实测落地） |
 |---|---|---|
-| compileSdk | 34 | 35 |
-| AGP | 8.3.0 | 8.6+（建议 8.7.x） |
-| Gradle wrapper | 8.4 | 8.9+ |
+| compileSdk | 34 | 36 |
+| AGP | 8.3.0 | 8.10.1（compileSdk 36 需 8.9.1+） |
+| Gradle wrapper | 8.4 | 8.11.1（AGP 8.10 最低要求） |
 | targetSdk | 34 | 34（不动） |
-| JDK | 17 | 17（不动，CI 已就位） |
+| JDK | 17 | 17（不动，CI 已就位；本地 21 亦可） |
 
 ## 4. 代码改动清单（本项目实际用到的 API）
 
@@ -63,12 +63,13 @@
 - `NotificationPermission` lint 抑制先保留：Media3 同样含 DownloadService 代码路径，迁移后再评估是否可移除
 - 迁移后旧 2.x 依赖体积移除，APK 变小，无 ProGuard 影响（minify 关闭）
 
-## 6. 执行清单（迁移落地时照此勾选）
+## 6. 执行清单（迁移落地进度）
 
-- [ ] 升级 Gradle wrapper → AGP → compileSdk（单独一笔提交，先确认 CI 绿）
-- [ ] 替换依赖坐标（media3-exoplayer / media3-ui 1.11.1）
-- [ ] `MainActivity.java`、`activity_main.xml` 包名替换
-- [ ] `assembleDebug` + 真机过 PRD FR-1/FR-2 验收清单（起播 ≤3s、倍速即时生效、旋转不中断）
+- [x] 升级 Gradle wrapper → AGP → compileSdk（3399b5c 先行一步，随后按 AAR 元数据要求调整为 Gradle 8.11.1 / AGP 8.10.1 / compileSdk 36）
+- [x] 替换依赖坐标（media3-exoplayer / media3-ui 1.11.1）
+- [x] `MainActivity.java`、`activity_main.xml` 包名替换（全仓已无 `exoplayer2` 引用）
+- [x] `assembleDebug` 通过（本地 Gradle 8.11.1 + JDK 21）；CI 绿灯随提交验证
+- [ ] 真机过 PRD FR-1/FR-2 验收清单（起播、倍速、旋转）——并入 T1.1 一并做。另注：原默认源 TearsOfSteel.mp4 所在 gtv-videos-bucket 已整桶 403（2026-11 实测），真机回归前需先完成 T2.3 换默认源
 - [ ] 更新 PRD 6 章（播放层版本）与本文档状态
 
 ## 7. 参考

@@ -12,17 +12,17 @@ import android.os.RemoteException;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackParameters;
+import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.service.IMyAidlInterface;
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.PlaybackParameters;
-import com.google.android.exoplayer2.SimpleExoPlayer;
-import com.google.android.exoplayer2.ui.PlayerView;
 
 public class MainActivity extends AppCompatActivity {
-    private SimpleExoPlayer player;
+    private ExoPlayer player;
     private Dialog speedDialog;
     private final float[] speeds = new float[]{0.5f, 1f, 1.5f, 2f};
     private float currentSpeed = 1.0f; // 默认播放速度为1.0x
@@ -88,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initializePlayer() {
-        player = new SimpleExoPlayer.Builder(this).build();
+        player = new ExoPlayer.Builder(this).build();
         PlayerView playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
         Uri videoUri = (Uri.parse("https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"));

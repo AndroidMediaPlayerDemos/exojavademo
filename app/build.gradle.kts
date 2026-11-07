@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.example.exo_java_demo"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.exo_java_demo"
@@ -33,15 +33,15 @@ android {
         aidl = true
     }
     lint {
-        // ExoPlayer 库内部 DownloadService 的通知路径触发 NotificationPermission 检查；
+        // Media3/ExoPlayer 库内部 DownloadService 的通知路径触发 NotificationPermission 检查；
         // 本应用未使用 DownloadService，该路径不会执行，无需申请 POST_NOTIFICATIONS
         disable += "NotificationPermission"
     }
 }
 
 dependencies {
-    implementation("com.google.android.exoplayer:exoplayer:2.19.1")
-    implementation("com.google.android.exoplayer:exoplayer-ui:2.19.1")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-ui:1.11.1")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
