@@ -24,6 +24,12 @@
             android:text="@string/btn_speed"/>
 
         <Button
+            android:id="@+id/btn_source"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/btn_source"/>
+
+        <Button
             android:id="@+id/btn_mediaplayer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

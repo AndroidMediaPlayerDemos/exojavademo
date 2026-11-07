@@ -9,11 +9,15 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
+import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -21,11 +25,15 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.service.IMyAidlInterface;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity {
     private ExoPlayer player;
     private Dialog speedDialog;
     private final float[] speeds = new float[]{0.5f, 1f, 1.5f, 2f};
     private float currentSpeed = 1.0f; // 默认播放速度为1.0x
+    private SourceRepository sourceRepository;
 
     private IMyAidlInterface myService;
     private boolean serviceBound = false;
@@ -80,21 +88,81 @@ public class MainActivity extends AppCompatActivity {
         }, currentSpeed));
 
         findViewById(R.id.button).setOnClickListener(v -> speedDialog.show());
+        findViewById(R.id.btn_source).setOnClickListener(v -> showSourceDialog());
         findViewById(R.id.btn_mediaplayer).setOnClickListener(v ->
                 startActivity(new Intent(this, MediaPlayerActivity.class)));
         findViewById(R.id.btn_sharepoint).setOnClickListener(v ->
                 startActivity(new Intent(this, WebViewActivity.class)));
+        sourceRepository = new SourceRepository(this);
         initializePlayer();
     }
 
     private void initializePlayer() {
         player = new ExoPlayer.Builder(this).build();
+        player.addListener(new Player.Listener() {
+            @Override
+            public void onPlayerError(PlaybackException error) {
+                // FR-5：源非法或不可达时给出用户可见反馈（默认重试耗尽后触发）
+                Toast.makeText(MainActivity.this,
+                        getString(R.string.source_error, error.getErrorCodeName()),
+                        Toast.LENGTH_LONG).show();
+            }
+        });
         PlayerView playerView = findViewById(R.id.player_view);
         playerView.setPlayer(player);
-        Uri videoUri = (Uri.parse("https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"));
-        player.addMediaItem(MediaItem.fromUri(videoUri));
+        // 默认源：预置列表第一条（原 TearsOfSteel 源 2026-11 起整桶 403，已更换）
+        player.addMediaItem(MediaItem.fromUri(Uri.parse(sourceRepository.defaultUrl())));
         player.prepare();
         player.setPlayWhenReady(true);
+    }
+
+    private void showSourceDialog() {
+        Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_source);
+        EditText input = dialog.findViewById(R.id.source_input);
+        SourceAdapter adapter = new SourceAdapter(buildSourceRows(), this::loadSource);
+        RecyclerView list = dialog.findViewById(R.id.source_list);
+        list.setLayoutManager(new LinearLayoutManager(this));
+        list.setAdapter(adapter);
+        dialog.findViewById(R.id.btn_load_source).setOnClickListener(v -> {
+            String url = input.getText().toString().trim();
+            if (!url.isEmpty()) {
+                loadSource(url);
+                dialog.dismiss();
+            }
+        });
+        dialog.findViewById(R.id.btn_clear_history).setOnClickListener(v -> {
+            sourceRepository.clearHistory();
+            adapter.updateRows(buildSourceRows());
+        });
+        dialog.show();
+    }
+
+    private List<SourceAdapter.Row> buildSourceRows() {
+        List<SourceAdapter.Row> rows = new ArrayList<>();
+        rows.add(SourceAdapter.Row.header(getString(R.string.source_section_presets)));
+        for (SourceRepository.Preset preset : SourceRepository.PRESETS) {
+            rows.add(SourceAdapter.Row.item(getString(preset.labelRes), preset.url));
+        }
+        List<String> history = sourceRepository.getHistory();
+        if (!history.isEmpty()) {
+            rows.add(SourceAdapter.Row.header(getString(R.string.source_section_history)));
+            for (String url : history) {
+                rows.add(SourceAdapter.Row.item(url, url));
+            }
+        }
+        return rows;
+    }
+
+    private void loadSource(String url) {
+        if (player == null) {
+            return;
+        }
+        player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
+        player.prepare();
+        player.setPlayWhenReady(true);
+        sourceRepository.addToHistory(url);
+        Toast.makeText(this, getString(R.string.source_loading, url), Toast.LENGTH_SHORT).show();
     }
 
     @Override

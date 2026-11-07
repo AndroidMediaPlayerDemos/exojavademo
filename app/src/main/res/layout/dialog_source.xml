@@ -1,0 +1,33 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <EditText
+        android:id="@+id/source_input"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/source_url_hint"
+        android:imeOptions="actionGo"
+        android:inputType="textUri"
+        android:maxLines="1"/>
+
+    <Button
+        android:id="@+id/btn_load_source"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_load_source"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/source_list"
+        android:layout_width="match_parent"
+        android:layout_height="320dp"/>
+
+    <Button
+        android:id="@+id/btn_clear_history"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_clear_history"/>
+
+</LinearLayout>

@@ -2,8 +2,20 @@
     <string name="app_name">exo-java-demo</string>
 
     <string name="btn_speed">倍速播放</string>
+    <string name="btn_source">播放源</string>
     <string name="btn_mediaplayer">MediaPlayer 播放</string>
     <string name="btn_sharepoint">SharePoint 认证实验</string>
+
+    <string name="source_url_hint">输入 http(s) 视频地址</string>
+    <string name="btn_load_source">加载此地址</string>
+    <string name="btn_clear_history">清空历史</string>
+    <string name="source_section_presets">预置示例源</string>
+    <string name="source_section_history">最近播放</string>
+    <string name="preset_mp4">渐进式 MP4 · Sintel 预告片</string>
+    <string name="preset_hls">HLS 多码率 · Apple BipBop</string>
+    <string name="preset_dash">DASH 多码率 · Big Buck Bunny</string>
+    <string name="source_loading">正在加载：%1$s</string>
+    <string name="source_error">播放失败：%1$s</string>
 
     <string name="aidl_connecting">AIDL: 正在连接本应用服务…</string>
     <string name="aidl_bind_failed">AIDL: 服务绑定失败</string>
