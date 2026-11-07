@@ -25,6 +25,35 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-    </application>
 
+        <!-- 集成自 MediaPlayerWithSurfaceView：MediaPlayer + SurfaceView 播放演示 -->
+        <activity
+            android:name=".MediaPlayerActivity"
+            android:label="@string/btn_mediaplayer"
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="orientation|keyboardHidden"
+            android:exported="false"/>
+
+        <!-- 集成自 MediaPlayerWithSurfaceView：WebView 检查 SharePoint 认证 Cookie -->
+        <activity
+            android:name=".WebViewActivity"
+            android:label="@string/btn_sharepoint"
+            android:exported="false"/>
+
+        <!-- AIDL 服务端（自托管），外部应用可按该 Action 绑定 -->
+        <service
+            android:name=".MyService"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.example.exo_java_demo.AIDL_SERVICE"/>
+            </intent-filter>
+        </service>
+    </application>
+    <queries>
+        <package android:name="com.example.mediaplayerwithsurfaceview"/>
+        <intent>
+            <action android:name='com.example.mediaplayerwithsurfaceview'/>
+        </intent>
+    </queries>
 </manifest>
