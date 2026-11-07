@@ -32,6 +32,11 @@ android {
     buildFeatures {
         aidl = true
     }
+    lint {
+        // ExoPlayer 库内部 DownloadService 的通知路径触发 NotificationPermission 检查；
+        // 本应用未使用 DownloadService，该路径不会执行，无需申请 POST_NOTIFICATIONS
+        disable += "NotificationPermission"
+    }
 }
 
 dependencies {
