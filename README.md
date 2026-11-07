@@ -94,6 +94,19 @@ Azure Media Services 可以与 SharePoint 配合使用，尽管这两个服务�
 
 结论，尽管通过HTTP/HTTPS播放视频在技术上更简单、更直接，适用于一些基本的用例，但在需要高质量、高效率和更好用户体验的场景下（如直播、长视频内容、移动环境等），使用专门的流媒体协议会提供显著更好的结果。流媒体协议通过自适应比特率流、优化的网络传输和强大的错误恢复机制等特性，能够确保在各种网络条件下都能提供平滑且高质量的播放体验。
 
+## 历史实验记录
+
+- **带宽观测实验（commit `5cdb4bf`，2024-03，"Temp add bandwidth settings"）**：曾为
+  ExoPlayer 的 `DefaultHttpDataSource.Factory` 挂接 `DefaultBandwidthMeter`（`setTransferListener`），
+  并改用 `ProgressiveMediaSource` 构造播放源，用于观测下载吞吐。该实验代码后续已移除，
+  **未留下量化结论**（当时默认源所在的 gtv-videos-bucket 现已整桶 403，无法复测原始场景）。
+  现基线为 androidx.media3 1.11.1；带宽相关行为将在 M3 的弱网 ABR 实测（T3.1）中
+  以多码率预置源重新验证，结论届时回写本文。
+
+- **测试源可用性（2026-11 实测）**：`gtv-videos-bucket` 整桶 403（原 TearsOfSteel/
+  BigBuckBunny 等示例源全部失效）；当前预置源为 W3C Sintel 预告片（MP4）、
+  Apple BipBop（HLS 多码率）、Akamai BBB（DASH 多码率），均验证可达。
+
 ## FAQ
 
 - [播放器事件](https://developer.android.com/media/media3/exoplayer/listening-to-player-events?hl=zh-cn)

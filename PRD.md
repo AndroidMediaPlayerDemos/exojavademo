@@ -2,7 +2,7 @@
 
 | 文档版本 | 发布日期 | 维护人 | 代码基线 | 读者 |
 |---|---|---|---|---|
-| v1.1（草案） | 2026-11-07 | NuovoVita | `main @ 4bd82aa` + 工作区改动 | 开发团队 · 技术评审 |
+| v1.2 | 2026-11-07 | NuovoVita | `main`（M2 迭代，含 Media3 迁移与 FR-3/FR-5） | 开发团队 · 技术评审 |
 
 > 基于 ExoPlayer 的 Android 原生视频播放验证项目 —— 从在线播放、播放控制，走向跨应用协作与企业视频源集成。
 
@@ -33,11 +33,11 @@
 | 项 | 现状 |
 |---|---|
 | 应用标识 | `com.example.exo_java_demo`，versionName 1.0（versionCode 1） |
-| 系统范围 | minSdk 24（Android 7.0）～ target/compileSdk 34（Android 14） |
-| 技术栈 | Java 8 · ExoPlayer `2.19.1`（exoplayer + exoplayer-ui）· AppCompat / Material / ConstraintLayout |
-| 已交付功能 | HTTPS 渐进式在线播放、倍速选择（0.5×–2.0×）、MediaPlayer+SurfaceView 备用引擎、AIDL 客户端/服务端（自托管）、SharePoint 认证实验页 |
-| 进行中 | 双工程功能集成收尾与真机验收（工作区待提交，见 v1.1） |
-| 默认测试源 | `storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4` |
+| 系统范围 | minSdk 24（Android 7.0）～ targetSdk 34（Android 14）/ compileSdk 36 |
+| 技术栈 | Java 8 · androidx.media3 `1.11.1`（media3-exoplayer + media3-ui）· AppCompat / Material / ConstraintLayout |
+| 已交付功能 | HTTPS 渐进式在线播放、倍速选择（0.5×–2.0×）、轨道选择（画质/音轨 + 自动档）、播放源管理（预置源/历史/URL 输入）、MediaPlayer+SurfaceView 备用引擎、AIDL 客户端/服务端（自托管）、SharePoint 认证实验页 |
+| 进行中 | M2 代码完成；真机验收（T1.1/T1.2/T1.4）待设备可用 |
+| 默认测试源 | 预置多源列表首条（W3C Sintel MP4）；原 gtv-videos-bucket 整桶 403，2026-11 更换 |
 | 持续集成 | GitHub Actions（`android.yml`） |
 
 ## 2. 目标与非目标
@@ -82,9 +82,9 @@
 |---|---|---|---|---|
 | FR-1 | 在线视频播放 | P0 | 已交付 | M0 |
 | FR-2 | 倍速播放 | P0 | 已交付 | M0 |
-| FR-3 | 轨道选择（恢复） | P1 | 待恢复 | M2 |
+| FR-3 | 轨道选择（恢复） | P1 | 已交付（待真机验收） | M2 |
 | FR-4 | 跨应用服务通信（AIDL） | P1 | 已交付（待真机验收） | M1 |
-| FR-5 | 播放源管理 | P1 | 规划中 | M2 |
+| FR-5 | 播放源管理 | P1 | 已交付（待真机验收） | M2 |
 | FR-6 | 自适应流协议验证 | P2 | 规划中 | M3 |
 | FR-7 | 企业视频源集成 | P2 | 规划中 | M4 |
 | FR-8 | 播放体验增强 | P2 | 规划中 | M3 |
@@ -95,7 +95,7 @@
 
 **状态：已交付 · 优先级：P0 · 里程碑：M0**
 
-通过 `SimpleExoPlayer` + `PlayerView` 播放 HTTPS 渐进式视频流（默认 TearsOfSteel.mp4），启动即自动播放（`playWhenReady`），播放期间保持屏幕常亮（`keepScreenOn`）；横竖屏切换由 `configChanges` 承接，不重建 Activity。
+通过 androidx.media3 `ExoPlayer` + `PlayerView` 播放 HTTPS 渐进式视频流（默认源为预置列表首条，见 FR-5；原默认 TearsOfSteel 所在 gtv-videos-bucket 已整桶 403，2026-11 更换），启动即自动播放（`playWhenReady`），播放期间保持屏幕常亮（`keepScreenOn`）；横竖屏切换由 `configChanges` 承接，不重建 Activity。
 
 验收标准：
 
@@ -117,9 +117,9 @@
 
 ### FR-3 轨道选择（恢复）
 
-**状态：待恢复 · 优先级：P1 · 里程碑：M2**
+**状态：已交付（待真机验收） · 优先级：P1 · 里程碑：M2**
 
-在播放器控制条中提供画质（视频轨）与音轨的选择入口，基于 `TrackSelectionParameters` 实现强制指定与「自动」档。该功能曾于 2024-03 交付（commit `e837934`），后在倍速功能重构（commit `4bd82aa`）中随旧实现一并移除；需求本身仍成立，需在新结构上恢复。
+主界面提供「画质 / 音轨」入口，弹出选择对话框：基于 Media3 `TrackSelectionParameters` / `TrackSelectionOverride` 实现强制指定与「自动」档（自动 = `clearOverridesOfType`），仅列出设备支持的轨道，当前生效档位以对勾标记。该功能曾于 2024-03 交付（commit `e837934`），后在倍速功能重构（commit `4bd82aa`）中随旧实现一并移除，本次在新结构上恢复。
 
 验收标准：
 
@@ -146,15 +146,16 @@
 
 ### FR-5 播放源管理
 
-**状态：规划中 · 优先级：P1 · 里程碑：M2**
+**状态：已交付（待真机验收） · 优先级：P1 · 里程碑：M2**
 
-将硬编码于 `MainActivity` / `MediaPlayerActivity` 的播放地址改为运行时可管理：提供地址输入、最近播放历史（本地持久化）、预置示例源列表（渐进式 MP4 / HLS / DASH 各至少一条）。
+主界面提供「播放源」入口，弹出管理对话框：URL 地址输入即播、预置示例源列表（渐进式 MP4 / HLS 多码率 / DASH 多码率各一条，2026-11 逐一验证可达）、最近播放历史（SharedPreferences 持久化，去重、新在前、上限 10 条、可一键清空）。播放错误经 `onPlayerError` 以 Toast 呈现错误码。
 
 验收标准：
 
 - [ ] 输入合法 HTTP(S) 地址即可播放，无需改代码重新编译
 - [ ] 历史记录在杀进程后保留；可一键清空
 - [ ] 非法地址或不可达源在 5 秒内给出明确错误提示（不无限转圈）
+  > 实现注：错误提示依赖 ExoPlayer 默认加载重试耗尽（约 3 次重试），典型不可达源在数秒内触发；5 秒硬性时限待真机实测确认。
 
 ### FR-6 自适应流协议验证
 
@@ -227,25 +228,25 @@
 
 ## 6. 技术方案概要
 
-当前为单模块应用：`MainActivity`（ExoPlayer 播放、倍速对话框、AIDL 客户端与功能入口）+ `SpeedAdapter`（倍速列表 RecyclerView）+ `MyService`（AIDL 服务端，自托管）+ `MediaPlayerActivity`（MediaPlayer+SurfaceView 备用引擎）+ `WebViewActivity`（SharePoint 认证实验页）+ AIDL 接口定义（`com.example.service.IMyAidlInterface`）。UI 层 AppCompat / Material / ConstraintLayout，播放层 ExoPlayer 2.19.1。
+当前为单模块应用：`MainActivity`（ExoPlayer 播放、倍速对话框、播放源与轨道选择对话框、AIDL 客户端与功能入口）+ `SpeedAdapter`（倍速列表 RecyclerView）+ `SourceRepository` / `SourceAdapter`（FR-5 播放源数据与列表）+ `TrackAdapter`（FR-3 轨道选择列表）+ `MyService`（AIDL 服务端，自托管）+ `MediaPlayerActivity`（MediaPlayer+SurfaceView 备用引擎）+ `WebViewActivity`（SharePoint 认证实验页）+ AIDL 接口定义（`com.example.service.IMyAidlInterface`）。UI 层 AppCompat / Material / ConstraintLayout，播放层 androidx.media3 `1.11.1`（media3-exoplayer + media3-ui，compileSdk 36 / AGP 8.10.1 / Gradle 8.11.1）。
 
-> **迁移建议 —— ExoPlayer 2.x 已停止维护。** 官方后继为 Media3（`androidx.media3`），提供迁移路径与持续的安全修复。建议在 M2 迭代评估并执行迁移（`SimpleExoPlayer → androidx.media3.exoplayer.ExoPlayer` 等），避免在新功能上继续投入后被锁死在旧 API。
+> **迁移已完成（M2，commit `908f427`）。** ExoPlayer 2.19.1 → androidx.media3 1.11.1 的包名重命名与构建链升级已落地，`assembleDebug` 本地与 CI 均绿灯；评估与实施过程见 `docs/media3-migration.md`。行为回归（起播、倍速、切换源）并入 T1.1 真机验收。
 
 ### 已知技术债
 
-- 播放地址硬编码在 `MainActivity` 与 `MediaPlayerActivity`（FR-5 解决）
-- 轨道选择功能待在新结构上恢复（FR-3）
-- `MediaPlayerActivity` / `WebViewActivity` 为忠实移植，错误处理较简陋（`printStackTrace`），验收时需真机过一遍弱网与坏地址场景
-- 历史实验代码（带宽设置，commit `5cdb4bf`）已清理，但结论未沉淀进文档
-- 无自动化 UI 测试，仅存模板单测/仪器测试
+- ~~播放地址硬编码在 `MainActivity` 与 `MediaPlayerActivity`~~ 已随 FR-5 解决（`SourceRepository` 预置源 + 历史，`MediaPlayerActivity` 复用首条预置源）
+- ~~轨道选择功能待在新结构上恢复（FR-3）~~ 已恢复（M2）
+- ~~`MediaPlayerActivity` 错误处理较简陋（`printStackTrace`）~~ 已补齐错误回调与用户提示（M2 技术债清理）；`WebViewActivity` 无 catch 块、无此问题。弱网与坏地址场景仍需真机过一遍（并入 T1.1）
+- ~~历史实验代码（带宽设置，commit `5cdb4bf`）已清理，但结论未沉淀进文档~~ 已如实沉淀（README「历史实验记录」：当时未记录量化数据；量化结论推迟至 T3.1 弱网 ABR 实测）
+- 无自动化 UI 测试，仅存模板单测/仪器测试（最小测试集仍规划于 M3）
 
 ## 7. 里程碑规划
 
 | 阶段 | 主题 | 内容 | 状态 | 时间 |
 |---|---|---|---|---|
 | M0 | 基础播放与控制 | 在线播放、倍速选择、轨道选择（初版，后移除）、CI 搭建、README 知识库 | 已完成 | 2024-03 ～ 2024-04 |
-| M1 | 跨应用通信与双工程集成 | FR-4 AIDL 自托管绑定与调用（含异常与生命周期收敛）、FR-9 MediaPlayer 备用引擎、FR-10 SharePoint 认证实验页 | 代码完成，待真机验收与提交 | 当前迭代 |
-| M2 | 播放能力回归 | FR-3 轨道选择恢复、FR-5 播放源管理、Media3 迁移评估 | 规划中 | 待排期 |
+| M1 | 跨应用通信与双工程集成 | FR-4 AIDL 自托管绑定与调用（含异常与生命周期收敛）、FR-9 MediaPlayer 备用引擎、FR-10 SharePoint 认证实验页 | 代码完成并提交，待真机验收（T1.1/T1.2/T1.4） | 当前迭代 |
+| M2 | 播放能力回归 | FR-3 轨道选择恢复、FR-5 播放源管理、Media3 迁移（评估 + 实施）、技术债清理 | 代码完成，待真机验收（并入 T1.1） | 当前迭代 |
 | M3 | 自适应流验证 | FR-6 HLS/DASH/ABR 实测、FR-8 播放体验增强 | 规划中 | 待排期 |
 | M4 | 企业源 PoC | FR-7 SharePoint / Azure Media Services 鉴权播放验证 | 规划中 | 待排期 |
 
@@ -253,11 +254,11 @@
 
 | 风险 / 依赖 | 等级 | 影响 | 应对 |
 |---|---|---|---|
-| ExoPlayer 2.x 已 EOL，无安全修复 | 高 | 新 API 不可用；已知缺陷不再修复 | M2 完成 Media3 迁移评估，尽早切换 |
+| ~~ExoPlayer 2.x 已 EOL，无安全修复~~ | ~~高~~ 已消除 | 新 API 不可用；已知缺陷不再修复 | M2 已完成 Media3 1.11.1 迁移（commit `908f427`） |
 | FR-4 曾依赖目标应用 `mediaplayerwithsurfaceview` 同设备安装 | 低（已缓解） | 缺少宿主时无法验证绑定链路 | 服务端已内置为 `MyService`（自托管），可独立验证；跨应用绑定保留为可选项 |
-| 企业源鉴权模型不确定（SharePoint 权限 / Azure 令牌） | 中 | M4 范围可能扩大或受阻 | 提前与平台方确认权限模型；PoC 先行、不追求完整 |
-| 默认测试源为 Google 公网存储，部分网络不可达 | 低 | 演示与验证受阻 | FR-5 落地预置多源列表，含可替换镜像 |
-| 无自动化 UI 测试，回归靠手测 | 低 | 重构（如 Media3 迁移）风险放大 | 迁移前为主流程补最小仪器测试集 |
+| 企业源鉴权模型不确定（SharePoint 权限 / Azure 令牌） | 中 | M4 范围可能扩大或受阻 | 提前与平台方确认权限模型；PoC 先行、不追求完整（另：Azure Media Services 已于 2024-06-30 退役，M4 前需重估路线） |
+| 默认测试源为 Google 公网存储，部分网络不可达 | 低（已缓解） | 演示与验证受阻 | FR-5 已落地预置多源列表（MP4/HLS/DASH 各一条，2026-11 验证可达）；原 gtv 桶整桶 403 已弃用 |
+| 无自动化 UI 测试，回归靠手测 | 低 | 重构风险放大 | Media3 迁移已靠 CI 构建绿灯 + 代码评审承接；最小仪器测试集仍规划于 M3 |
 
 ## 9. 附录
 
@@ -285,3 +286,4 @@
 |---|---|---|
 | v1.0 | 2026-11-07 | 首次成文：依据 main @ 4bd82aa 与工作区未提交改动整理现状，定义 FR-1～FR-8 与 M1～M4 规划 |
 | v1.1 | 2026-11-07 | 集成 ExoPlayerCustomUI（功能本库已具备，无新增）与 MediaPlayerWithSurfaceView（AIDL 服务端自托管、MediaPlayer+SurfaceView 引擎、SharePoint Cookie 实验）；FR-4 状态更新为已交付，新增 FR-9/FR-10，`assembleDebug` 构建通过；同日完成全文一致性校订（版本头、总览表状态、产品定位、FR-5 范围、FR-10 里程碑归属） |
+| v1.2 | 2026-11-07 | M2 落地：ExoPlayer 2.19.1 → androidx.media3 1.11.1 迁移完成（构建链升级 compileSdk 36 / AGP 8.10.1 / Gradle 8.11.1）；FR-3 轨道选择、FR-5 播放源管理交付（待真机验收，并入 T1.1）；技术债清理（MediaPlayerActivity 错误处理、带宽实验结论如实沉淀）；默认源因 gtv 桶整桶 403 更换为多协议预置源（2026-11 验证可达） |

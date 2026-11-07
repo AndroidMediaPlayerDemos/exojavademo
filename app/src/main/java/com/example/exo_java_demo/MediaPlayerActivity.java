@@ -5,6 +5,7 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -13,14 +14,11 @@ import java.io.IOException;
 
 /**
  * android.media.MediaPlayer + SurfaceView 播放演示，
- * 集成自 MediaPlayerWithSurfaceView 工程，与主界面的 ExoPlayer 使用同一视频源，
- * 便于直观对比两种播放内核的起播速度与画面表现。
+ * 集成自 MediaPlayerWithSurfaceView 工程，与主界面的 ExoPlayer 使用同一视频源
+ * （{@link SourceRepository} 默认预置源），便于直观对比两种播放内核的起播速度与画面表现。
  */
 public class MediaPlayerActivity extends AppCompatActivity
         implements SurfaceHolder.Callback, MediaPlayer.OnPreparedListener {
-
-    public static final String VIDEO_PATH =
-            "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4";
 
     private MediaPlayer mediaPlayer;
 
@@ -39,13 +37,21 @@ public class MediaPlayerActivity extends AppCompatActivity
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setDisplay(holder);
         try {
-            mediaPlayer.setDataSource(VIDEO_PATH);
+            mediaPlayer.setDataSource(SourceRepository.PRESETS.get(0).url);
             mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
             // 网络流必须先注册监听再异步准备，避免 prepare() 在主线程阻塞引发 ANR
             mediaPlayer.setOnPreparedListener(this);
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                // 源不可达（如 HTTP 4xx/5xx）在异步准备阶段以错误回调到达
+                Toast.makeText(MediaPlayerActivity.this,
+                        getString(R.string.mediaplayer_error, what, extra),
+                        Toast.LENGTH_LONG).show();
+                releaseMediaPlayer();
+                return true;
+            });
             mediaPlayer.prepareAsync();
         } catch (IOException e) {
-            e.printStackTrace();
+            Toast.makeText(this, R.string.mediaplayer_invalid, Toast.LENGTH_LONG).show();
             releaseMediaPlayer();
         }
     }
