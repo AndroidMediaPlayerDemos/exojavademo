@@ -86,15 +86,16 @@
 
 > 关联：FR-7（FR-10 为其预研基础）。依赖顺序：T4.1 → T4.2 → T4.3 → T4.4。
 
-- [ ] **T4.1 企业源路线调研**（1–2 人日）
+- [x] **T4.1 企业源路线调研**（1–2 人日）
   ⚠️ Azure Media Services 已于 2024-06-30 退役，README 与 PRD 中的 AMS 方案已不可用，需确定替代路线（候选：SharePoint 静态文件直接播放、Azure CDN + 自建 HLS 打包、第三方转码服务）。
   同时确认 SharePoint 权限模型与令牌（rtFa / FedAuth）生命周期；**调研结论需同步更新 PRD FR-7 与 README**。
+  **结果（2026-11-07）：完成**（应「M4 路线调研先行」指示提前执行）。主路线定为 **A：SharePoint 静态文件 + Cookie 注入**（WebView 取 rtFa/FedAuth → Media3 `CookieHandler` → 直连 URL）；备选 A2：Graph `/drive/items/{id}/content` 换预认证短时 URL；ABR 演进 B：Blob 离线打包 HLS/DASH + CDN（微软官方 AMS 迁移工具即此形态）；Microsoft Stream 不开放第三方原生播放，排除。核实：AMS/Azure Media Player 均退役且无第一方替代；FedAuth ~10h（条件访问可至 ~1h）、rtFa 静默续期；权限复用 SharePoint 站点/库权限；单文件上限 250GB。决策记录：`docs/enterprise-source-research.md`；PRD 已升 v1.3，README Azure 节已加失效警告。
 
 - [ ] **T4.2 凭据播放链路**（3 人日）
-  基于 FR-10：WebView 登录 → 提取 rtFa / FedAuth → 注入播放请求头 → ExoPlayer 播放受保护视频。
+  基于 FR-10 与 T4.1 路线 A：WebView 登录 → 提取 rtFa / FedAuth → 注入 Media3 `CookieHandler`（`CookieHandler.setDefault` 先于建播放器）→ ExoPlayer 播放 SharePoint 直连 URL；A2（Graph 预认证 URL）为备选。开放项实测：非交互拉流限流、条件访问对 WebView 登录的影响、两种 URL 形态的 Range 兼容。
 
 - [ ] **T4.3 鉴权失败路径**（1 人日）
-  401/403 明确提示、重新登录与令牌刷新；凭据不落明文日志。
+  401/403 明确提示（主因：FedAuth 过期或账号无站点权限）、引导回 WebView 重新登录刷新 Cookie；凭据不落明文日志（Cookie 全程不经日志输出）。
 
 - [ ] **T4.4 集成成本与限制清单**（0.5 人日）
   权限模型、格式、缓存策略；作为 PRD FR-7 验收产出物。
@@ -109,7 +110,7 @@
 M1（T1.3 ✅；T1.1/T1.2/T1.4 真机项暂缓，待设备）
  └─ T2.1 ✅ → T2.5（迁移）✅ → T2.3 ✅ → T2.2 ✅ → T2.4 ✅
      └─ T3.1 → T3.2 → T3.3（迁移已先行，测试集不再前置）
-         └─ T4.1 → T4.2 → T4.3 → T4.4
+         └─ T4.1 ✅（路线调研先行完成）→ T4.2 → T4.3 → T4.4
 ```
 
 工作量合计约 **20 人日**（不含 T1.2 验收返工与 T4 调研引发的方案调整）。

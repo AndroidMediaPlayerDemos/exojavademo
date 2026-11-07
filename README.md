@@ -36,6 +36,8 @@ androidx.media3.exoplayer.ExoPlayer example
 
 ## Azure视频播放方案
 
+> ⚠️ **方案已失效（2026-11 核实）**：Azure Media Services 与 Azure Media Player 均已于 **2024-06-30 退役**，新建账户被全面禁止，且微软未提供第一方替代服务。本节保留作为历史调研记录，**请勿据此选型**；现行企业源路线见 [`docs/enterprise-source-research.md`](docs/enterprise-source-research.md)（主路线：SharePoint Cookie 注入直连；ABR 演进：Blob 离线打包 HLS/DASH + Azure CDN）。
+
 Azure Media Services 可以与 SharePoint 配合使用，尽管这两个服务在微软的生态系统中服务于不同的目的，但它们可以一起工作以提供强大的视频内容管理和分发解决方案。SharePoint 主要用于文档管理和协作，而 Azure Media Services 提供视频编码、加密、流式传输和分析等服务。将这两者结合使用，可以提高组织内部和对外发布的视频内容的管理效率和观看体验。
 
 ### 配合使用的场景示例

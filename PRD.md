@@ -2,7 +2,7 @@
 
 | 文档版本 | 发布日期 | 维护人 | 代码基线 | 读者 |
 |---|---|---|---|---|
-| v1.2 | 2026-11-07 | NuovoVita | `main`（M2 迭代，含 Media3 迁移与 FR-3/FR-5） | 开发团队 · 技术评审 |
+| v1.3 | 2026-11-07 | NuovoVita | `main`（M4 路线调研先行） | 开发团队 · 技术评审 |
 
 > 基于 ExoPlayer 的 Android 原生视频播放验证项目 —— 从在线播放、播放控制，走向跨应用协作与企业视频源集成。
 
@@ -86,7 +86,7 @@
 | FR-4 | 跨应用服务通信（AIDL） | P1 | 已交付（待真机验收） | M1 |
 | FR-5 | 播放源管理 | P1 | 已交付（待真机验收） | M2 |
 | FR-6 | 自适应流协议验证 | P2 | 规划中 | M3 |
-| FR-7 | 企业视频源集成 | P2 | 规划中 | M4 |
+| FR-7 | 企业视频源集成 | P2 | 路线已定（T4.1） | M4 |
 | FR-8 | 播放体验增强 | P2 | 规划中 | M3 |
 | FR-9 | 备用播放引擎（MediaPlayer+SurfaceView） | P2 | 已交付 | M1 |
 | FR-10 | SharePoint 认证实验页 | P2 | 已交付（实验） | M1（预研 M4） |
@@ -171,15 +171,19 @@
 
 ### FR-7 企业视频源集成
 
-**状态：规划中 · 优先级：P2 · 里程碑：M4**
+**状态：路线已定（T4.1 调研完成）· 优先级：P2 · 里程碑：M4**
 
-打通 SharePoint / Azure Media Services 托管内容的鉴权播放 PoC：携带凭据请求受保护资源，处理 401/403 与令牌刷新，验证 README 中「SharePoint 静态文件直播 vs Azure 转 HLS/DASH」两条路线中的鉴权环节。
+打通 SharePoint 托管内容的鉴权播放 PoC：携带凭据请求受保护资源，处理 401/403 与令牌刷新。~~原「SharePoint 静态文件 vs Azure Media Services 转 HLS/DASH」双路线~~ 已随 **AMS 于 2024-06-30 退役**收敛为单路线（决策记录：`docs/enterprise-source-research.md`）：
+
+- **主路线 A**：FR-10 WebView 登录取得 rtFa / FedAuth → 注入 Media3 `CookieHandler` → ExoPlayer 播放 SharePoint 文件直连 URL（渐进式，权限复用 SharePoint 站点/库权限）；
+- **备选 A2**：MSAL Bearer 调 Graph `/drive/items/{id}/content` 换预认证短时 URL（免 WebView，需注册 Entra 应用）；
+- **演进 B（暂缓）**：Blob 离线打包 HLS/DASH + Azure CDN，承接弱网 ABR 需求（AMS 官方迁移工具即此形态）；Microsoft Stream 不开放第三方原生播放，排除。
 
 验收标准：
 
 - [ ] 带权限的账号可播放受保护视频；无权限账号得到明确拒绝提示
 - [ ] 凭据不落明文日志，不硬编码进仓库
-- [ ] 输出集成成本与限制清单（权限模型、格式、缓存策略）
+- [ ] 输出集成成本与限制清单（权限模型、格式、缓存策略、Cookie 生命周期）
 
 ### FR-8 播放体验增强
 
@@ -248,7 +252,7 @@
 | M1 | 跨应用通信与双工程集成 | FR-4 AIDL 自托管绑定与调用（含异常与生命周期收敛）、FR-9 MediaPlayer 备用引擎、FR-10 SharePoint 认证实验页 | 代码完成并提交，待真机验收（T1.1/T1.2/T1.4） | 当前迭代 |
 | M2 | 播放能力回归 | FR-3 轨道选择恢复、FR-5 播放源管理、Media3 迁移（评估 + 实施）、技术债清理 | 代码完成，待真机验收（并入 T1.1） | 当前迭代 |
 | M3 | 自适应流验证 | FR-6 HLS/DASH/ABR 实测、FR-8 播放体验增强 | 规划中 | 待排期 |
-| M4 | 企业源 PoC | FR-7 SharePoint / Azure Media Services 鉴权播放验证 | 规划中 | 待排期 |
+| M4 | 企业源 PoC | FR-7 SharePoint 鉴权播放验证（路线已定：Cookie 注入直连，AMS 已退役出局，见 `docs/enterprise-source-research.md`） | 调研完成，PoC 待排期 | 待排期 |
 
 ## 8. 风险与依赖
 
@@ -256,7 +260,7 @@
 |---|---|---|---|
 | ~~ExoPlayer 2.x 已 EOL，无安全修复~~ | ~~高~~ 已消除 | 新 API 不可用；已知缺陷不再修复 | M2 已完成 Media3 1.11.1 迁移（commit `908f427`） |
 | FR-4 曾依赖目标应用 `mediaplayerwithsurfaceview` 同设备安装 | 低（已缓解） | 缺少宿主时无法验证绑定链路 | 服务端已内置为 `MyService`（自托管），可独立验证；跨应用绑定保留为可选项 |
-| 企业源鉴权模型不确定（SharePoint 权限 / Azure 令牌） | 中 | M4 范围可能扩大或受阻 | 提前与平台方确认权限模型；PoC 先行、不追求完整（另：Azure Media Services 已于 2024-06-30 退役，M4 前需重估路线） |
+| 企业源鉴权模型不确定（SharePoint 权限 / Azure 令牌） | 低（已缓解） | M4 范围可能扩大或受阻 | T4.1 已核实：权限复用 SharePoint 站点/库权限，FedAuth ~10h（条件访问可至 ~1h）、rtFa 静默续期；AMS 路线随其 2024-06-30 退役出局，主路线收敛为 SharePoint Cookie 注入（`docs/enterprise-source-research.md`）。剩余开放项：租户条件访问对 WebView 登录的影响、非交互拉流限流阈值，T4.2/T4.3 实测 |
 | 默认测试源为 Google 公网存储，部分网络不可达 | 低（已缓解） | 演示与验证受阻 | FR-5 已落地预置多源列表（MP4/HLS/DASH 各一条，2026-11 验证可达）；原 gtv 桶整桶 403 已弃用 |
 | 无自动化 UI 测试，回归靠手测 | 低 | 重构风险放大 | Media3 迁移已靠 CI 构建绿灯 + 代码评审承接；最小仪器测试集仍规划于 M3 |
 
@@ -287,3 +291,4 @@
 | v1.0 | 2026-11-07 | 首次成文：依据 main @ 4bd82aa 与工作区未提交改动整理现状，定义 FR-1～FR-8 与 M1～M4 规划 |
 | v1.1 | 2026-11-07 | 集成 ExoPlayerCustomUI（功能本库已具备，无新增）与 MediaPlayerWithSurfaceView（AIDL 服务端自托管、MediaPlayer+SurfaceView 引擎、SharePoint Cookie 实验）；FR-4 状态更新为已交付，新增 FR-9/FR-10，`assembleDebug` 构建通过；同日完成全文一致性校订（版本头、总览表状态、产品定位、FR-5 范围、FR-10 里程碑归属） |
 | v1.2 | 2026-11-07 | M2 落地：ExoPlayer 2.19.1 → androidx.media3 1.11.1 迁移完成（构建链升级 compileSdk 36 / AGP 8.10.1 / Gradle 8.11.1）；FR-3 轨道选择、FR-5 播放源管理交付（待真机验收，并入 T1.1）；技术债清理（MediaPlayerActivity 错误处理、带宽实验结论如实沉淀）；默认源因 gtv 桶整桶 403 更换为多协议预置源（2026-11 验证可达） |
+| v1.3 | 2026-11-07 | T4.1 企业源路线调研完成（提前执行，先于 M3）：AMS/Azure Media Player 均已 2024-06-30 退役且无第一方替代，FR-7 路线收敛为「SharePoint Cookie 注入直连」（备选 Graph 预认证 URL；ABR 演进挂 Blob+CDN 离线打包；Microsoft Stream 排除）；核实 rtFa/FedAuth 生命周期与 SharePoint 权限模型；决策记录 `docs/enterprise-source-research.md` |
