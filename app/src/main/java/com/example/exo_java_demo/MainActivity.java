@@ -13,6 +13,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.OptIn;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -23,6 +24,7 @@ import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -233,6 +235,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /** 轨道显示名：视频用 分辨率 + 码率，音频用 标签/语言 + 声道数。 */
+    @OptIn(markerClass = UnstableApi.class) // Format 码率字段属 Media3 opt-in API，仅此展示用途
     private String buildTrackLabel(Format format, int trackType) {
         StringBuilder builder = new StringBuilder();
         if (trackType == C.TRACK_TYPE_VIDEO) {
