@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.example.exo_java_demo"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.exo_java_demo"
