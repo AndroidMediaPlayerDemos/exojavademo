@@ -71,19 +71,28 @@ jobs:
           # 交付失真、guest 内核缺整形模块，均已弃用——详见 scripts/abr_shaper_proxy.py 头注）
           nohup python3 scripts/abr_shaper_proxy.py > /tmp/abr_proxy.log 2>&1 &
           n=0; until curl -sf "http://127.0.0.1:8801/__ctrl?bps=0" >/dev/null; do sleep 1; n=$((n+1)); if [ $n -gt 10 ]; then echo "::error::限速代理未就绪"; cat /tmp/abr_proxy.log; exit 1; fi; done
+          # 上游预检：经代理拉 MPD + 实测一段 720p 分片吞吐留档（run 42487661428 HOLD:high
+          # 超时无任何诊断可看；若 runner→akamai 链路慢于此数，ABR 爬不到 576p 属链路而非用例问题）
+          curl -sf --max-time 20 -o /tmp/mpd_probe "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps.mpd" || { echo "::error::代理上游拉取 MPD 失败"; cat /tmp/abr_proxy.log; exit 1; }
+          curl -s --max-time 40 -o /dev/null -w "seg_probe http=%{http_code} bytes=%{size_download} speed=%{speed_download}B/s\n" "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps_1280x720_4000k/bbb_30fps_1280x720_4000k_5.m4v"
           adb logcat -c
           adb shell settings put global abr_phase none
           nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest > /tmp/abr_gradle.log 2>&1 &
-          n=0; until adb logcat -d -s ABR_TEST:I 2>/dev/null | grep -q "HOLD:high"; do sleep 3; n=$((n+1)); if [ $n -gt 100 ]; then echo "::error::HOLD:high 超时（未爬升到≥480p 或用例已失败）"; exit 1; fi; done
+          # 轮询落盘再 grep（dash 无进程替换）；用例若提前 BUILD FAILED 立即跳出让诊断先行
+          adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; n=0; until grep -q "HOLD:high" /tmp/abr_lc.txt || grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null; do sleep 3; n=$((n+1)); adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; if [ $n -gt 100 ]; then echo "::error::HOLD:high 超时（未爬升到≥480p）"; echo "--- gradle 日志尾 ---"; tail -60 /tmp/abr_gradle.log 2>/dev/null; echo "--- ABR_TEST logcat ---"; cat /tmp/abr_lc.txt; echo "--- 代理日志尾 ---"; tail -20 /tmp/abr_proxy.log; exit 1; fi; done
+          grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null && { echo "::error::ABR 用例在爬档阶段即失败"; tail -60 /tmp/abr_gradle.log; adb logcat -d -s ABR_TEST:I; exit 1; }
           # 限速 800kbps：用例封顶 576p，在飞分片 ~1.57MB(~16s) < App 30s 读超时，
           # 又压住 270p 档(760+67=827k) 逼 ABR 降到 180p（≤240 断言）
           curl -sf "http://127.0.0.1:8801/__ctrl?bps=800000"
           adb shell settings put global abr_phase slow
-          n=0; until adb logcat -d -s ABR_TEST:I 2>/dev/null | grep -q "HOLD:low"; do sleep 3; n=$((n+1)); if [ $n -gt 120 ]; then echo "::error::HOLD:low 超时（限速后未下调到≤240p）"; exit 1; fi; done
+          adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; n=0; until grep -q "HOLD:low" /tmp/abr_lc.txt || grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null; do sleep 3; n=$((n+1)); adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; if [ $n -gt 120 ]; then echo "::error::HOLD:low 超时（限速后未下调到≤240p）"; echo "--- gradle 日志尾 ---"; tail -60 /tmp/abr_gradle.log 2>/dev/null; echo "--- ABR_TEST logcat ---"; cat /tmp/abr_lc.txt; exit 1; fi; done
+          grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null && { echo "::error::ABR 用例在降档阶段即失败"; tail -60 /tmp/abr_gradle.log; adb logcat -d -s ABR_TEST:I; exit 1; }
           curl -sf "http://127.0.0.1:8801/__ctrl?bps=0"
           adb shell settings put global abr_phase full
           # 不能用 pgrep -f "class=..."：本行自身的 sh -c 包装命令行就含该模式串，
           # pgrep 会永远匹配到包装进程 → 死循环（本地 badb49rlx 同陷阱实证）。改轮询构建结果行。
           until grep -qE "BUILD (SUCCESSFUL|FAILED)" /tmp/abr_gradle.log 2>/dev/null; do sleep 5; done
           tail -30 /tmp/abr_gradle.log
+          echo "--- ABR_TEST 全程打点 ---"
+          adb logcat -d -s ABR_TEST:I | tail -60
           grep -q "BUILD SUCCESSFUL" /tmp/abr_gradle.log || exit 1
