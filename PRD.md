@@ -2,7 +2,7 @@
 
 | 文档版本 | 发布日期 | 维护人 | 代码基线 | 读者 |
 |---|---|---|---|---|
-| v1.7 | 2026-11-08 | NuovoVita | `main`（M4 企业源 PoC T4.1–T4.4 收口） | 开发团队 · 技术评审 |
+| v1.8 | 2026-11-08 | NuovoVita | `main`（外部工程归档，T1.4 取消） | 开发团队 · 技术评审 |
 
 > 基于 ExoPlayer 的 Android 原生视频播放验证项目 —— 从在线播放、播放控制，走向跨应用协作与企业视频源集成。
 
@@ -261,7 +261,7 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | 风险 / 依赖 | 等级 | 影响 | 应对 |
 |---|---|---|---|
 | ~~ExoPlayer 2.x 已 EOL，无安全修复~~ | ~~高~~ 已消除 | 新 API 不可用；已知缺陷不再修复 | M2 已完成 Media3 1.11.1 迁移（commit `908f427`） |
-| FR-4 曾依赖目标应用 `mediaplayerwithsurfaceview` 同设备安装 | 低（已缓解） | 缺少宿主时无法验证绑定链路 | 服务端已内置为 `MyService`（自托管），可独立验证；跨应用绑定保留为可选项 |
+| FR-4 曾依赖目标应用 `mediaplayerwithsurfaceview` 同设备安装 | 低（已缓解） | 缺少宿主时无法验证绑定链路 | 服务端已内置为 `MyService`（自托管），可独立验证；外部工程已归档删除（2026-11-08，`~/AndroidStudioProjects/_archive/`，含完整 git 历史），需要跨应用场景时解压恢复即可 |
 | 企业源鉴权模型不确定（SharePoint 权限 / Azure 令牌） | 低（已缓解） | M4 范围可能扩大或受阻 | T4.1 已核实：权限复用 SharePoint 站点/库权限，FedAuth ~10h（条件访问可至 ~1h）、rtFa 静默续期；AMS 路线随其 2024-06-30 退役出局，主路线收敛为 SharePoint Cookie 注入（`docs/enterprise-source-research.md`）。剩余开放项：租户条件访问对 WebView 登录的影响、非交互拉流限流阈值，T4.2/T4.3 实测 |
 | 默认测试源为 Google 公网存储，部分网络不可达 | 低（已缓解） | 演示与验证受阻 | FR-5 已落地预置多源列表（MP4/HLS/DASH 各一条，2026-11 验证可达）；原 gtv 桶整桶 403 已弃用 |
 | 无自动化 UI 测试，回归靠手测 | 低 | 重构风险放大 | Media3 迁移已靠 CI 构建绿灯 + 代码评审承接；最小仪器测试集仍规划于 M3 |
@@ -298,3 +298,4 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | v1.5 | 2026-11-08 | T4.2 FR-7 凭据播放链路代码交付（待真实租户真机验收）：`SharePointCookieBridge` 提取 WebView 的 rtFa/FedAuth 注入 JVM CookieHandler（media3 1.11.1 经 HttpURLConnection 自动携带，覆盖清单/Range/302）；加载 SharePoint 源自动注入凭据，未登录引导去认证页；FR-7 状态与 M4 里程碑同步 |
 | v1.6 | 2026-11-08 | T4.3 FR-7 鉴权失败路径代码交付：SharePoint 源 401/403 时错误面板明确成因（Cookie 过期/无站点权限）并提供「重新登录」入口，重试前静默刷新凭据；错误路径仅展示数字状态码，凭据相关信息不进界面与日志 |
 | v1.7 | 2026-11-08 | T4.4 集成成本与限制清单入库 `docs/enterprise-integration-cost.md`（权限模型、FedAuth 生命周期、格式无 ABR、缓存现状、零服务端成本、4 项待实测租户行为）；FR-7 第三条验收勾选，M4 代码与产出物全部收口，剩余验收勾选待真实租户真机 |
+| v1.8 | 2026-11-08 | 外部工程收口归档：ExoPlayerCustomUI（功能本库已对齐）与 MediaPlayerWithSurfaceView（AIDL/MediaPlayer/WebView Cookie 实验均已集成）未提交改动先行提交，含完整 git 历史的 zip 归档至 `~/AndroidStudioProjects/_archive/` 后删除源目录；T1.4 跨应用绑定验证随之取消（跨进程链路由自托管 MyService 覆盖，跨应用场景可从归档恢复），风险表同步 |

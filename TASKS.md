@@ -27,8 +27,9 @@
 - [x] **T1.3 分批提交与推送**（0.5 人日）
   建议按文件边界拆分：① AIDL 自托管（`MyService`、`aidl/`、manifest 服务与 `<queries>`、gradle `aidl`）② `MediaPlayerActivity` 及布局 ③ `WebViewActivity` 及布局 ④ 主界面入口改造（`activity_main.xml`、`strings.xml`）⑤ 文档（`PRD.md`、`TASKS.md`）。
 
-- [ ] **T1.4 跨应用绑定验证**（0.5 人日，可选）
+- [x] **T1.4 跨应用绑定验证**（0.5 人日，可选）
   安装 MediaPlayerWithSurfaceView 应用，按 `MainActivity` 注释切换绑定目标为外部包名，验证 `<queries>` 生效与跨应用调用。
+  **结果（2026-11-08）：取消**。该外部工程功能已全部集成进本库（AIDL 服务自托管、MediaPlayer 引擎、WebView Cookie 实验），工程本体已提交收口并归档删除（zip：`~/AndroidStudioProjects/_archive/`，含完整 git 历史）。跨进程链路由自托管 `MyService` 验证；如需跨应用场景，从归档解压安装外部应用即可（manifest `<queries>` 与 `MainActivity` 切换注释保留有效）。
 
 **M1 完成门**：PRD 中 FR-4 / FR-9 / FR-10 验收清单全部勾选；main 分支 CI 绿灯。
 
@@ -111,7 +112,7 @@
 ## 执行顺序总览
 
 ```text
-M1（T1.3 ✅；T1.1/T1.2/T1.4 真机项暂缓，待设备）
+M1（T1.3 ✅、T1.4 取消；T1.1/T1.2 真机项暂缓，待设备）
  └─ T2.1 ✅ → T2.5（迁移）✅ → T2.3 ✅ → T2.2 ✅ → T2.4 ✅
      └─ T3.1（需真机）→ T3.2 ✅（代码）→ T3.3（需模拟器）
          └─ T4.1 ✅（路线调研先行完成）→ T4.2 ✅（代码）→ T4.3 ✅（代码）→ T4.4 ✅（清单入库）
