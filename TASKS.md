@@ -29,7 +29,7 @@
 
 - [x] **T1.4 跨应用绑定验证**（0.5 人日，可选）
   安装 MediaPlayerWithSurfaceView 应用，按 `MainActivity` 注释切换绑定目标为外部包名，验证 `<queries>` 生效与跨应用调用。
-  **结果（2026-11-08）：取消**。该外部工程功能已全部集成进本库（AIDL 服务自托管、MediaPlayer 引擎、WebView Cookie 实验），工程本体已提交收口并归档删除（zip：`~/AndroidStudioProjects/_archive/`，含完整 git 历史）。跨进程链路由自托管 `MyService` 验证；如需跨应用场景，从归档解压安装外部应用即可（manifest `<queries>` 与 `MainActivity` 切换注释保留有效）。
+  **结果（2026-11-08）：取消**。该外部工程功能已全部集成进本库（AIDL 服务自托管、MediaPlayer 引擎、WebView Cookie 实验），工程本体删除（曾短期 zip 归档，同日应指示一并删除，未保留副本）。跨进程链路由自托管 `MyService` 验证；如确需跨应用场景，需参照本库 `MyService`/`aidl/` 与 manifest `<queries>` 重建外部宿主工程。
 
 **M1 完成门**：PRD 中 FR-4 / FR-9 / FR-10 验收清单全部勾选；main 分支 CI 绿灯。
 
