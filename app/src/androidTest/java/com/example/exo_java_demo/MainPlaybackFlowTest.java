@@ -110,18 +110,7 @@ public class MainPlaybackFlowTest {
         // 直接按文字定位即可（scrollTo/actionOnItem 要求条目 90% 可见，软键盘
         // 自动弹起时遮挡列表会误判，故先收键盘）。
         onView(withId(R.id.source_input)).inRoot(isDialog()).perform(closeSoftKeyboard());
-        try {
-            onView(withText(R.string.preset_hls)).inRoot(isDialog()).perform(click());
-        } catch (RuntimeException e) {
-            // AGP 控制台会截断 Cause 链（完整栈只在 runner 的 HTML 报告里），
-            // 这里把根因折进断言消息，CI 日志一次可见。
-            Throwable root = e;
-            while (root.getCause() != null) {
-                root = root.getCause();
-            }
-            throw new AssertionError("点击预置条目失败，根因: " + root + " @ "
-                    + root.getStackTrace()[0], e);
-        }
+        onView(withText(R.string.preset_hls)).inRoot(isDialog()).perform(click());
 
         CountDownLatch ready = new CountDownLatch(1);
         AtomicReference<String> currentUri = new AtomicReference<>("");

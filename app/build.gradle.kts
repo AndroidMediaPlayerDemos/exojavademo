@@ -41,6 +41,10 @@ android {
 
 dependencies {
     implementation("androidx.media3:media3-exoplayer:1.11.1")
+    // HLS/DASH 为可选模块：DefaultMediaSourceFactory 反射装载，缺包时编译不报错、
+    // 运行时抛 ClassNotFoundException（T3.3 CI 仪器测试实测抓出）。
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
+    implementation("androidx.media3:media3-exoplayer-dash:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
 
     implementation("androidx.appcompat:appcompat:1.6.1")
