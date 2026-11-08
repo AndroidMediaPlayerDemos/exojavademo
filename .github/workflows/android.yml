@@ -29,6 +29,7 @@ jobs:
   instrumented-tests:
 
     runs-on: ubuntu-latest
+    timeout-minutes: 40
 
     steps:
     - uses: actions/checkout@v4
@@ -44,10 +45,11 @@ jobs:
     - name: Run instrumented tests on emulator
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 34
+        api-level: 30
         arch: x86_64
-        target: google_apis
+        target: google_atd   # 仪器测试专用精简镜像，冷启动远快于 google_apis
         force-avd-creation: false
         emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+        emulator-boot-timeout: 25
         disable-animations: true
         script: ./gradlew connectedDebugAndroidTest --stacktrace
