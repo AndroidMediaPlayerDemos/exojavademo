@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- T3.1 弱网实测：限速代理 scripts/abr_shaper_proxy.py 为明文 HTTP（宿主
+     127.0.0.1:8801，模拟器内经 10.0.2.2 回环别名访问）。仅对该别名放行明文，
+     其余流量维持系统默认（禁明文），不影响真实源与 SharePoint 认证流程。 -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

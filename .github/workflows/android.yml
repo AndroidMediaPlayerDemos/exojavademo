@@ -63,30 +63,27 @@ jobs:
         emulator-boot-timeout: 25
         disable-animations: true
         script: |
-          set -e
-          # 常规用例（T3.3 主流程三用例；ABR 实测需主机限速协调，用 notClass 隔离）。
-          # 注意：单行调用——上一轮续行符 \ 经 action 传递后在第二条调用处断裂，gradle 收到裸 \ 参数
+          # ⚠ 本 action 将 script 逐行各自以独立 sh -c 执行：禁止函数定义、续行符、
+          # 跨行变量与多行控制块（run 42447952918/42482408548 两次踩坑实证）。
+          # 常规用例（T3.3 主流程三用例；ABR 实测需主机限速协调，用 notClass 隔离）
           ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.exo_java_demo.AbrThrottleTest
-          # T3.1 ABR 实测：切 DASH 源 → 满速爬档打点 HOLD:high → 限速 edge 等下调打点 HOLD:low
-          # → 恢复 full 等回升；阶段经 Settings.Global abr_phase 通知用例
+          # T3.1 ABR 实测：宿主限速代理（QEMU console network speed 在 google_atd 镜像
+          # 交付失真、guest 内核缺整形模块，均已弃用——详见 scripts/abr_shaper_proxy.py 头注）
+          nohup python3 scripts/abr_shaper_proxy.py > /tmp/abr_proxy.log 2>&1 &
+          n=0; until curl -sf "http://127.0.0.1:8801/__ctrl?bps=0" >/dev/null; do sleep 1; n=$((n+1)); if [ $n -gt 10 ]; then echo "::error::限速代理未就绪"; cat /tmp/abr_proxy.log; exit 1; fi; done
           adb logcat -c
           adb shell settings put global abr_phase none
-          ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest &
-          GRADLE_PID=$!
-          wait_marker() {
-            marker=$1; deadline=$((SECONDS + $2))
-            while [ $SECONDS -lt $deadline ]; do
-              if adb logcat -d -s ABR_TEST:I 2>/dev/null | grep -q "$marker"; then return 0; fi
-              sleep 3
-            done
-            echo "::error::等待标记 $marker 超时（用例未到达该阶段或已失败）"
-            return 1
-          }
-          wait_marker "HOLD:high" 300
-          adb emu network speed edge
-          adb shell settings put global abr_phase edge
-          wait_marker "HOLD:low" 360
-          adb emu network speed full
+          nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest > /tmp/abr_gradle.log 2>&1 &
+          n=0; until adb logcat -d -s ABR_TEST:I 2>/dev/null | grep -q "HOLD:high"; do sleep 3; n=$((n+1)); if [ $n -gt 100 ]; then echo "::error::HOLD:high 超时（未爬升到≥480p 或用例已失败）"; exit 1; fi; done
+          # 限速 800kbps：用例封顶 576p，在飞分片 ~1.57MB(~16s) < App 30s 读超时，
+          # 又压住 270p 档(760+67=827k) 逼 ABR 降到 180p（≤240 断言）
+          curl -sf "http://127.0.0.1:8801/__ctrl?bps=800000"
+          adb shell settings put global abr_phase slow
+          n=0; until adb logcat -d -s ABR_TEST:I 2>/dev/null | grep -q "HOLD:low"; do sleep 3; n=$((n+1)); if [ $n -gt 120 ]; then echo "::error::HOLD:low 超时（限速后未下调到≤240p）"; exit 1; fi; done
+          curl -sf "http://127.0.0.1:8801/__ctrl?bps=0"
           adb shell settings put global abr_phase full
-          wait "$GRADLE_PID"
-          adb emu network speed full
+          # 不能用 pgrep -f "class=..."：本行自身的 sh -c 包装命令行就含该模式串，
+          # pgrep 会永远匹配到包装进程 → 死循环（本地 badb49rlx 同陷阱实证）。改轮询构建结果行。
+          until grep -qE "BUILD (SUCCESSFUL|FAILED)" /tmp/abr_gradle.log 2>/dev/null; do sleep 5; done
+          tail -30 /tmp/abr_gradle.log
+          grep -q "BUILD SUCCESSFUL" /tmp/abr_gradle.log || exit 1

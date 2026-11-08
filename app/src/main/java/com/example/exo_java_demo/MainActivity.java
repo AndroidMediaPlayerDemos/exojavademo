@@ -32,8 +32,11 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -168,7 +171,17 @@ public class MainActivity extends AppCompatActivity {
 
     @OptIn(markerClass = UnstableApi.class) // seek 步长设置属 Media3 opt-in API
     private void initializePlayer() {
-        player = new ExoPlayer.Builder(this).build();
+        // T3.1/FR-6：弱网限速下，在飞大分片（720p ~2.4MB）传输耗时远超默认 8s 读超时，
+        // 超时→重试仍取同一高档分片→重试耗尽抛致命 Source error 进 IDLE，ABR 拿不到
+        // 降档机会（模拟器 edge/umts 限速实测均 ~40s 必死）。读超时放宽到 30s，让首个
+        // 限速期分片得以完成、估计值下探、ABR 随之降档保播。连接超时维持 8s 默认，
+        // 坏源/不可达场景（FR-8 错误面板）不受影响。
+        DefaultHttpDataSource.Factory httpFactory =
+                new DefaultHttpDataSource.Factory().setReadTimeoutMs(30_000);
+        player = new ExoPlayer.Builder(this)
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(
+                        new DefaultDataSource.Factory(this, httpFactory)))
+                .build();
         player.setSeekBackIncrementMs(10_000);
         player.setSeekForwardIncrementMs(10_000);
         player.addListener(new Player.Listener() {
