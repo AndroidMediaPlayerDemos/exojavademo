@@ -71,7 +71,7 @@ public class AbrThrottleTest {
 
     private ActivityScenario<MainActivity> scenario;
 
-    /** 最近一次 ABR 带宽估计（kbps，由 AnalyticsListener 回调刷新，-1=尚无样本）。 */
+    /** 最近一次 ABR 带宽估计（kbps，槽 4 才是 bitrateEstimate，-1=尚无样本）。 */
     private volatile int estimateKbps = -1;
 
     /** 最近一次心跳看到的播放状态（-1=尚未采样），用于 IDLE 快速失败。 */
@@ -90,13 +90,15 @@ public class AbrThrottleTest {
 
     @Test
     public void dashAbr_downshiftUnderThrottleAndRecovery() throws InterruptedException {
-        // 挂带宽估计监听（media3 1.11 无 ExoPlayer.getBandwidthMeter，走 AnalyticsListener）
+        // 挂带宽估计监听（media3 1.11 无 ExoPlayer.getBandwidthMeter，走 AnalyticsListener。
+        // 接口槽位：(EventTime, int totalLoadTimeMs, long totalBytesLoaded, long bitrateEstimate)
+        // —— 估计值在第 4 槽；曾误读第 2 槽（窗口毫秒数）致 est 显示恒 0）
         scenario.onActivity(activity -> ((ExoPlayer) playerOf(activity)).addAnalyticsListener(
                 new AnalyticsListener() {
                     @Override
-                    public void onBandwidthEstimate(EventTime eventTime, int bitrateEstimate,
-                            long elapsedRealtimeMs, long loadDurationMs) {
-                        estimateKbps = bitrateEstimate / 1000;
+                    public void onBandwidthEstimate(EventTime eventTime, int totalLoadTimeMs,
+                            long totalBytesLoaded, long bitrateEstimate) {
+                        estimateKbps = (int) (bitrateEstimate / 1000);
                     }
                 }));
         // 封顶 576p：720p 分片 ~2.4MB 在 800kbps 下叠加并发音频即贴近 30s 读超时，

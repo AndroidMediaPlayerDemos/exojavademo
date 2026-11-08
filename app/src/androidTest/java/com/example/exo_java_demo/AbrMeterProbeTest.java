@@ -68,13 +68,15 @@ public class AbrMeterProbeTest {
         scenario.onActivity(activity -> ((ExoPlayer) playerOf(activity)).addAnalyticsListener(
                 new AnalyticsListener() {
                     @Override
-                    public void onBandwidthEstimate(EventTime eventTime, int bitrateEstimate,
-                            long elapsedRealtimeMs, long loadDurationMs) {
-                        lastEst.set(bitrateEstimate);
+                    public void onBandwidthEstimate(EventTime eventTime, int totalLoadTimeMs,
+                            long totalBytesLoaded, long bitrateEstimate) {
+                        lastEst.set((int) bitrateEstimate);
                         int n = estEvents.incrementAndGet();
                         // 每 10 笔打一行，避免刷屏；首笔必打
                         if (n <= 3 || n % 10 == 0) {
-                            Log.i(TAG, "EST#" + n + " bps=" + bitrateEstimate);
+                            Log.i(TAG, "EST#" + n + " bps=" + bitrateEstimate
+                                    + " winMs=" + totalLoadTimeMs
+                                    + " bytes=" + totalBytesLoaded);
                         }
                     }
 
@@ -111,10 +113,23 @@ public class AbrMeterProbeTest {
             Thread.sleep(5_000);
             scenario.onActivity(activity -> {
                 Player player = playerOf(activity);
+                StringBuilder sel = new StringBuilder();
+                for (androidx.media3.common.Tracks.Group g : player.getCurrentTracks().getGroups()) {
+                    for (int i = 0; i < g.length; i++) {
+                        if (g.isTrackSelected(i)) {
+                            androidx.media3.common.Format f = g.getTrackFormat(i);
+                            sel.append(f.sampleMimeType != null
+                                    && f.sampleMimeType.startsWith("video")
+                                    ? "video h=" + f.height + " br=" + f.bitrate
+                                    : "audio br=" + f.bitrate).append(' ');
+                        }
+                    }
+                }
                 Log.i(TAG, "VITAL h=" + player.getVideoSize().height
                         + " est=" + lastEst.get() + "bps"
                         + " estEvents=" + estEvents.get()
                         + " loadedMB=" + loadedBytes.get() / (1024 * 1024)
+                        + " sel=[" + sel.toString().trim() + "]"
                         + " state=" + player.getPlaybackState()
                         + " pos=" + player.getCurrentPosition() / 1000 + "s"
                         + " bufMs=" + (player.getBufferedPosition() - player.getCurrentPosition()));
