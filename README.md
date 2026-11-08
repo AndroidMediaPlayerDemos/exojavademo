@@ -2,6 +2,26 @@
 
 androidx.media3.exoplayer.ExoPlayer example
 
+> 需求与进度以 [PRD.md](PRD.md) / [TASKS.md](TASKS.md) 为准；本文定位是技术知识库。
+
+## 项目概览
+
+基于 Media3 ExoPlayer 的 Android 原生播放验证 Demo，主线：基础播放与控制 → 播放能力回归（Media3 迁移、轨道选择、源管理）→ 体验增强与自适应流 → 企业源（SharePoint Cookie 鉴权直连）。
+
+**功能面**（对应 PRD FR-1~FR-10；代码均已交付，运行时验收待真机）：
+
+- 播放与控制：在线起播、倍速（0.5x~2x）、±10s 快进快退、手势（横滑 seek、左半屏亮度/右半屏音量竖滑、边缘避让系统手势）
+- 播放源：URL 输入、最近播放历史、预置示例源（渐进式 MP4 / HLS / DASH 多码率）
+- 轨道选择：画质/音轨手动指定与「自动」档（`TrackSelectionOverride`）
+- 跨进程与备用引擎：自托管 AIDL 服务（`add(5, 6)` 演示）；`android.media.MediaPlayer` + SurfaceView 备用播放页（两引擎对比）
+- 企业源：WebView 登录 → rtFa/FedAuth 注入 CookieHandler → SharePoint 直连播放；401/403 明确成因提示与「重新登录」引导（机制见下文[「鉴权直连的实现」](#鉴权直连的实现t42-已落地)）
+
+**技术栈**：androidx.media3 1.11.1（exoplayer + ui）· AGP 8.10.1 · Gradle 8.11.1 · JDK 17 · minSdk 24 / targetSdk 34 / compileSdk 36 · Java（无 Kotlin 业务代码）
+
+**构建**：`./gradlew build`（与 CI 同款，含 lint 与 debug/release 双构建）
+
+**文档索引**：[PRD.md](PRD.md)（需求与验收）· [TASKS.md](TASKS.md)（任务与进度）· [docs/media3-migration.md](docs/media3-migration.md)（ExoPlayer 2.19.1 → Media3 1.11.1 迁移记录）· [docs/enterprise-source-research.md](docs/enterprise-source-research.md)（企业源路线调研）· [docs/enterprise-integration-cost.md](docs/enterprise-integration-cost.md)（企业源集成成本与限制清单）
+
 ## 流媒体协议
 
 流媒体传输协议用于在网络上有效地传输音频、视频和其他多媒体内容。这些协议各有特点，适用于不同的使用场景。下面是一些主要的流媒体传输协议及其典型应用场景：
@@ -70,7 +90,7 @@ Azure Media Services 可以与 SharePoint 配合使用，尽管这两个服务�
 
 - **HTTP/HTTPS**：基于HTTP(S)的视频文件访问是最基础的方式，适用于从SharePoint下载或流式传输视频。这种方法的优点是简单易行，但可能不支持复杂的流媒体功能，如自适应比特率流（ABR）。
 
-- **动态流媒体协议**：如果你希望实现更高级的流媒体播放功能（如自适应流、直播等），可能需要将视频托管到支持这些功能的流媒体服务器或服务上（例如Azure Media Services），然后通过支持的流媒体协议（如HLS或DASH）来播放视频。在这种情况下，ExoPlayer可以直接播放HLS或DASH等格式的流媒体内容。
+- **动态流媒体协议**：如果你希望实现更高级的流媒体播放功能（如自适应流、直播等），可能需要将视频托管到支持这些功能的流媒体服务器或服务上，然后通过支持的流媒体协议（如HLS或DASH）来播放视频。~~例如 Azure Media Services~~ —— AMS 已于 2024-06-30 退役，本工程企业源的演进路线为「Azure Blob 托管离线打包的 HLS/DASH + Azure CDN」（见 [`docs/enterprise-source-research.md`](docs/enterprise-source-research.md)）。在这种情况下，ExoPlayer可以直接播放HLS或DASH等格式的流媒体内容。
 
 因此，直接从SharePoint播放视频主要是通过HTTP(S)协议，而不是专门的流媒体协议。如果有更高级的播放需求，可能需要考虑其他的视频托管和传输解决方案。
 
@@ -82,6 +102,8 @@ SharePoint 文件直连 URL 受 Cookie 鉴权（`FedAuth` 会话 Cookie + `rtFa`
 2. 提取这两个 Cookie 写入 JVM `java.net.CookieManager` 的 CookieStore，并 `CookieHandler.setDefault(...)` 全局生效；
 3. ExoPlayer 侧**无需任何配置**：Media3 1.11.1 的 `DefaultHttpDataSource` 已移除显式 CookieHandler 接口，但其底层的 `HttpURLConnection` 在建立连接时会自动挂载 `CookieHandler.getDefault()` 返回的处理器（AOSP libcore `HttpHandler` 行为），因此清单请求、Range 分段请求、302 跟随的每一跳都会自动带上 Cookie——这是「`setDefault` 即可」而「静态塞 Cookie 请求头」做不到跟随重定向的原因；
 4. 重新登录后同名 Cookie 覆盖旧值，直接重试即可，无需清缓存。
+
+播放中返回 401/403（FedAuth 过期或账号无站点权限）时，错误面板会给出明确成因与「重新登录」入口，重试前自动重注入最新 Cookie（T4.3）；权限模型、Cookie 生命周期、格式与成本等集成事实汇总见 [`docs/enterprise-integration-cost.md`](docs/enterprise-integration-cost.md)。
 
 注意点：写入 CookieStore 时 domain 设为精确主机（不带前导点），避免凭据泄漏到其他租户子域；凭据只在存储间搬运，不进界面与日志。
 
