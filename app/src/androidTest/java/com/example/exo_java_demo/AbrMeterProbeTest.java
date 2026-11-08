@@ -113,23 +113,28 @@ public class AbrMeterProbeTest {
             Thread.sleep(5_000);
             scenario.onActivity(activity -> {
                 Player player = playerOf(activity);
+                // 全档位清单：选中态/受支持态/支持码（3=HANDLED 2=EXCEEDS_CAPABILITIES 0/…=不支持）
                 StringBuilder sel = new StringBuilder();
-                for (androidx.media3.common.Tracks.Group g : player.getCurrentTracks().getGroups()) {
+                for (androidx.media3.common.Tracks.Group g
+                        : player.getCurrentTracks().getGroups()) {
                     for (int i = 0; i < g.length; i++) {
-                        if (g.isTrackSelected(i)) {
-                            androidx.media3.common.Format f = g.getTrackFormat(i);
-                            sel.append(f.sampleMimeType != null
-                                    && f.sampleMimeType.startsWith("video")
-                                    ? "video h=" + f.height + " br=" + f.bitrate
-                                    : "audio br=" + f.bitrate).append(' ');
-                        }
+                        androidx.media3.common.Format f = g.getTrackFormat(i);
+                        sel.append(f.width).append('x').append(f.height)
+                                .append('@').append(f.bitrate / 1000).append('k')
+                                .append(" sel=").append(g.isTrackSelected(i))
+                                .append(" sup=").append(g.isTrackSupported(i))
+                                .append('(').append(g.getTrackSupport(i)).append(") | ");
                     }
                 }
+                androidx.media3.common.TrackSelectionParameters p =
+                        player.getTrackSelectionParameters();
+                Log.i(TAG, "PARAMS maxVideo=" + p.maxVideoWidth + "x" + p.maxVideoHeight
+                        + " maxVBr=" + p.maxVideoBitrate);
                 Log.i(TAG, "VITAL h=" + player.getVideoSize().height
                         + " est=" + lastEst.get() + "bps"
                         + " estEvents=" + estEvents.get()
                         + " loadedMB=" + loadedBytes.get() / (1024 * 1024)
-                        + " sel=[" + sel.toString().trim() + "]"
+                        + " tracks=[" + sel.toString().trim() + "]"
                         + " state=" + player.getPlaybackState()
                         + " pos=" + player.getCurrentPosition() / 1000 + "s"
                         + " bufMs=" + (player.getBufferedPosition() - player.getCurrentPosition()));

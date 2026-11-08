@@ -74,6 +74,7 @@ jobs:
           # 上游预检：经代理拉 MPD + 实测一段 720p 分片吞吐留档（run 42487661428 HOLD:high
           # 超时无任何诊断可看；若 runner→akamai 链路慢于此数，ABR 爬不到 576p 属链路而非用例问题）
           curl -sf --max-time 20 -o /tmp/mpd_probe "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps.mpd" || { echo "::error::代理上游拉取 MPD 失败"; cat /tmp/abr_proxy.log; exit 1; }
+          echo "--- MPD 档位清单（与本地基准对比是否同源） ---"; grep -o '<Representation[^>]*' /tmp/mpd_probe
           curl -s --max-time 40 -o /dev/null -w "seg_probe http=%{http_code} bytes=%{size_download} speed=%{speed_download}B/s\n" "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps_1280x720_4000k/bbb_30fps_1280x720_4000k_5.m4v"
           adb logcat -c
           # 临时诊断（run 42488899281 est=0 冻结溯源）：带宽采样探针，75s 必过，
