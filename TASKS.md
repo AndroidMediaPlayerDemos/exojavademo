@@ -96,8 +96,9 @@
   基于 FR-10 与 T4.1 路线 A：WebView 登录 → 提取 rtFa / FedAuth → 注入 Media3 `CookieHandler`（`CookieHandler.setDefault` 先于建播放器）→ ExoPlayer 播放 SharePoint 直连 URL；A2（Graph 预认证 URL）为备选。开放项实测：非交互拉流限流、条件访问对 WebView 登录的影响、两种 URL 形态的 Range 兼容。
   **结果（2026-11-08）：代码完成**。`SharePointCookieBridge` 从 WebView Cookie 存储提取 rtFa/FedAuth 写入 JVM `CookieManager`（`CookieHandler.setDefault` 于建播放器前就位）；实测确认 media3 1.11.1 `DefaultHttpDataSource` 已移除显式 CookieHandler 接口，但底层 `HttpURLConnection` 自动挂载默认 CookieHandler，故清单/Range/302 每跳全程带凭据（机制回写 README「鉴权直连的实现」节）。主界面加载 `*.sharepoint.com` 源时自动注入：有凭据直接播；无凭据弹窗引导去认证页（可「仍要播放」观察 401/403 路径）；重试前静默刷新凭据。真机验收（真实租户登录播放、限流、条件访问、URL 形态 Range 兼容）待设备，验收清单暂不勾。
 
-- [ ] **T4.3 鉴权失败路径**（1 人日）
+- [x] **T4.3 鉴权失败路径**（1 人日）
   401/403 明确提示（主因：FedAuth 过期或账号无站点权限）、引导回 WebView 重新登录刷新 Cookie；凭据不落明文日志（Cookie 全程不经日志输出）。
+  **结果（2026-11-08）：代码完成**。错误面板分流：从 `PlaybackException` 因果链取 `InvalidResponseCodeException.responseCode`，SharePoint 源 401/403 时显示「鉴权失败（HTTP 码）+ Cookie 过期或无站点权限」文案并出现「重新登录」按钮（一键回认证页；回来后「重试」先静默重注入凭据再 prepare，T4.2 已就位）；非鉴权错误维持通用错误码文案。凭据红线：错误路径只展示数字状态码，异常消息与响应头（可能含 Cookie 相关信息）不进界面不进日志。真实租户实测 401/403（FedAuth 过期触发、无权限账号）待真机。
 
 - [ ] **T4.4 集成成本与限制清单**（0.5 人日）
   权限模型、格式、缓存策略；作为 PRD FR-7 验收产出物。
@@ -112,7 +113,7 @@
 M1（T1.3 ✅；T1.1/T1.2/T1.4 真机项暂缓，待设备）
  └─ T2.1 ✅ → T2.5（迁移）✅ → T2.3 ✅ → T2.2 ✅ → T2.4 ✅
      └─ T3.1（需真机）→ T3.2 ✅（代码）→ T3.3（需模拟器）
-         └─ T4.1 ✅（路线调研先行完成）→ T4.2 ✅（代码）→ T4.3 → T4.4
+         └─ T4.1 ✅（路线调研先行完成）→ T4.2 ✅（代码）→ T4.3 ✅（代码）→ T4.4
 ```
 
 工作量合计约 **20 人日**（不含 T1.2 验收返工与 T4 调研引发的方案调整）。

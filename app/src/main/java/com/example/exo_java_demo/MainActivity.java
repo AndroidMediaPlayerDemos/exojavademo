@@ -32,6 +32,7 @@ import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -64,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private PlayerView playerView;
     private View errorPanel;
     private TextView errorText;
+    private View btnRelogin;
     private TextView gestureHint;
     private AudioManager audioManager;
     private GestureDetector gestureDetector;
@@ -136,6 +138,7 @@ public class MainActivity extends AppCompatActivity {
         playerView = findViewById(R.id.player_view);
         errorPanel = findViewById(R.id.error_panel);
         errorText = findViewById(R.id.error_text);
+        btnRelogin = findViewById(R.id.btn_relogin);
         gestureHint = findViewById(R.id.gesture_hint);
         audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         findViewById(R.id.btn_rewind).setOnClickListener(v -> {
@@ -149,6 +152,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         findViewById(R.id.btn_retry).setOnClickListener(v -> retryPlayback());
+        // T4.3：鉴权失败 → 回认证页刷新 Cookie，回来后「重试」会先静默重新注入
+        btnRelogin.setOnClickListener(v ->
+                startActivity(new Intent(this, WebViewActivity.class)));
         setupGestureControl();
 
         // FR-7/T4.2：JVM CookieHandler 须在建播放器前就位 —— DefaultHttpDataSource
@@ -168,8 +174,20 @@ public class MainActivity extends AppCompatActivity {
         player.addListener(new Player.Listener() {
             @Override
             public void onPlayerError(PlaybackException error) {
-                // FR-5/FR-8：源非法或不可达时展示错误面板（重试入口），不再只弹 Toast
-                errorText.setText(getString(R.string.source_error, error.getErrorCodeName()));
+                // FR-5/FR-8：源非法或不可达时展示错误面板（重试入口），不再只弹 Toast。
+                // 只展示错误码，不打异常详情（InvalidResponseCodeException 的消息/头里
+                // 可能带凭据相关信息，FR-7 红线：Cookie 全程不经日志与界面）
+                Integer httpStatus = httpStatusOf(error);
+                if (httpStatus != null && (httpStatus == 401 || httpStatus == 403)
+                        && currentSourceUrl != null
+                        && SharePointCookieBridge.isSharePointUrl(currentSourceUrl)) {
+                    // T4.3：鉴权失败 —— FedAuth 过期或账号无站点权限，引导重新登录
+                    errorText.setText(getString(R.string.sharepoint_auth_error, httpStatus));
+                    btnRelogin.setVisibility(View.VISIBLE);
+                } else {
+                    errorText.setText(getString(R.string.source_error, error.getErrorCodeName()));
+                    btnRelogin.setVisibility(View.GONE);
+                }
                 errorPanel.setVisibility(View.VISIBLE);
             }
 
@@ -187,6 +205,19 @@ public class MainActivity extends AppCompatActivity {
         player.addMediaItem(MediaItem.fromUri(Uri.parse(sourceRepository.defaultUrl())));
         player.prepare();
         player.setPlayWhenReady(true);
+    }
+
+    /** 从错误因果链提取 HTTP 响应码（401/403 判定用），非 HTTP 数据源错误返回 null。 */
+    @OptIn(markerClass = UnstableApi.class) // InvalidResponseCodeException 属 Media3 opt-in API
+    private static Integer httpStatusOf(PlaybackException error) {
+        Throwable cause = error.getCause();
+        while (cause != null) {
+            if (cause instanceof HttpDataSource.InvalidResponseCodeException) {
+                return ((HttpDataSource.InvalidResponseCodeException) cause).responseCode;
+            }
+            cause = cause.getCause();
+        }
+        return null;
     }
 
     private void showSourceDialog() {

@@ -49,4 +49,6 @@
     <string name="sharepoint_login_message">此源来自 SharePoint，需要登录后才能播放。请先到「SharePoint 认证实验」页完成登录，再回来加载此地址。凭据不会显示，也不会写入日志。</string>
     <string name="sharepoint_go_login">去登录</string>
     <string name="sharepoint_play_anyway">仍要播放</string>
+    <string name="sharepoint_auth_error">鉴权失败（HTTP %1$d）：登录 Cookie 已过期，或账号没有该站点的访问权限。可「重新登录」后重试。</string>
+    <string name="btn_relogin">重新登录</string>
 </resources>

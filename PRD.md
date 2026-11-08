@@ -2,7 +2,7 @@
 
 | 文档版本 | 发布日期 | 维护人 | 代码基线 | 读者 |
 |---|---|---|---|---|
-| v1.5 | 2026-11-08 | NuovoVita | `main`（M4 凭据播放链路 T4.2） | 开发团队 · 技术评审 |
+| v1.6 | 2026-11-08 | NuovoVita | `main`（M4 鉴权失败路径 T4.3） | 开发团队 · 技术评审 |
 
 > 基于 ExoPlayer 的 Android 原生视频播放验证项目 —— 从在线播放、播放控制，走向跨应用协作与企业视频源集成。
 
@@ -86,7 +86,7 @@
 | FR-4 | 跨应用服务通信（AIDL） | P1 | 已交付（待真机验收） | M1 |
 | FR-5 | 播放源管理 | P1 | 已交付（待真机验收） | M2 |
 | FR-6 | 自适应流协议验证 | P2 | 规划中 | M3 |
-| FR-7 | 企业视频源集成 | P2 | PoC 链路已交付（T4.2，待真机验收） | M4 |
+| FR-7 | 企业视频源集成 | P2 | PoC 链路已交付（T4.2/T4.3，待真机验收） | M4 |
 | FR-8 | 播放体验增强 | P2 | 已交付（待真机验收） | M3 |
 | FR-9 | 备用播放引擎（MediaPlayer+SurfaceView） | P2 | 已交付 | M1 |
 | FR-10 | SharePoint 认证实验页 | P2 | 已交付（实验） | M1（预研 M4） |
@@ -171,9 +171,9 @@
 
 ### FR-7 企业视频源集成
 
-**状态：PoC 链路已交付（T4.2 代码完成，待真实租户真机验收）· 优先级：P2 · 里程碑：M4**
+**状态：PoC 链路已交付（T4.2/T4.3 代码完成，待真实租户真机验收）· 优先级：P2 · 里程碑：M4**
 
-打通 SharePoint 托管内容的鉴权播放 PoC：携带凭据请求受保护资源，处理 401/403 与令牌刷新。~~原「SharePoint 静态文件 vs Azure Media Services 转 HLS/DASH」双路线~~ 已随 **AMS 于 2024-06-30 退役**收敛为单路线（决策记录：`docs/enterprise-source-research.md`）。T4.2 已落地凭据播放链路：`SharePointCookieBridge` 把 WebView 登录得到的 rtFa / FedAuth 注入 JVM `CookieHandler`（media3 `DefaultHttpDataSource` 底层 HttpURLConnection 自动携带，覆盖清单 / Range / 302 每跳），主界面加载 `*.sharepoint.com` 源时自动注入凭据，未登录则引导先去认证页（实现细节见 README「鉴权直连的实现」）。
+打通 SharePoint 托管内容的鉴权播放 PoC：携带凭据请求受保护资源，处理 401/403 与令牌刷新。~~原「SharePoint 静态文件 vs Azure Media Services 转 HLS/DASH」双路线~~ 已随 **AMS 于 2024-06-30 退役**收敛为单路线（决策记录：`docs/enterprise-source-research.md`）。T4.2 已落地凭据播放链路：`SharePointCookieBridge` 把 WebView 登录得到的 rtFa / FedAuth 注入 JVM `CookieHandler`（media3 `DefaultHttpDataSource` 底层 HttpURLConnection 自动携带，覆盖清单 / Range / 302 每跳），主界面加载 `*.sharepoint.com` 源时自动注入凭据，未登录则引导先去认证页（实现细节见 README「鉴权直连的实现」）。T4.3 已落地鉴权失败路径：SharePoint 源 401/403 时错误面板给出明确成因（Cookie 过期或无站点权限）与「重新登录」入口，重试前静默刷新凭据；错误路径只展示数字状态码，Cookie 相关信息不进界面与日志。
 
 - **主路线 A**：FR-10 WebView 登录取得 rtFa / FedAuth → 注入 Media3 `CookieHandler` → ExoPlayer 播放 SharePoint 文件直连 URL（渐进式，权限复用 SharePoint 站点/库权限）；
 - **备选 A2**：MSAL Bearer 调 Graph `/drive/items/{id}/content` 换预认证短时 URL（免 WebView，需注册 Entra 应用）；
@@ -294,3 +294,4 @@
 | v1.3 | 2026-11-07 | T4.1 企业源路线调研完成（提前执行，先于 M3）：AMS/Azure Media Player 均已 2024-06-30 退役且无第一方替代，FR-7 路线收敛为「SharePoint Cookie 注入直连」（备选 Graph 预认证 URL；ABR 演进挂 Blob+CDN 离线打包；Microsoft Stream 排除）；核实 rtFa/FedAuth 生命周期与 SharePoint 权限模型；决策记录 `docs/enterprise-source-research.md` |
 | v1.4 | 2026-11-07 | T3.2 FR-8 播放体验增强代码交付（待真机验收）：PlayerView 内置缓冲指示、错误面板 + 一键重试（替代纯 Toast）、±10s 快进快退、横滑 seek / 左右半屏竖滑亮度音量手势（边缘 24dp 避让系统手势）；lint 与双构建绿灯 |
 | v1.5 | 2026-11-08 | T4.2 FR-7 凭据播放链路代码交付（待真实租户真机验收）：`SharePointCookieBridge` 提取 WebView 的 rtFa/FedAuth 注入 JVM CookieHandler（media3 1.11.1 经 HttpURLConnection 自动携带，覆盖清单/Range/302）；加载 SharePoint 源自动注入凭据，未登录引导去认证页；FR-7 状态与 M4 里程碑同步 |
+| v1.6 | 2026-11-08 | T4.3 FR-7 鉴权失败路径代码交付：SharePoint 源 401/403 时错误面板明确成因（Cookie 过期/无站点权限）并提供「重新登录」入口，重试前静默刷新凭据；错误路径仅展示数字状态码，凭据相关信息不进界面与日志 |

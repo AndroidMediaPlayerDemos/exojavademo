@@ -38,6 +38,16 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/btn_retry"/>
+
+            <!-- T4.3：仅 SharePoint 401/403 鉴权失败时出现 -->
+            <Button
+                android:id="@+id/btn_relogin"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/btn_relogin"
+                android:visibility="gone"
+                tools:visibility="gone"/>
         </LinearLayout>
 
         <!-- FR-8：手势调节过程的居中提示（seek 目标 / 音量 / 亮度） -->
