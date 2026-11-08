@@ -23,6 +23,7 @@ import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
+import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -105,9 +106,11 @@ public class MainPlaybackFlowTest {
     @Test
     public void sourceSwitch_playsHlsPreset() throws InterruptedException {
         onView(withId(R.id.btn_source)).perform(click());
-        onView(withText(R.string.preset_hls)).inRoot(isDialog())
-                .perform(RecyclerViewActions.scrollTo(withText(R.string.preset_hls)),
-                        click());
+        // 条目根是 LinearLayout（标题+url 两个 TextView），scrollTo 的匹配器针对条目根视图，
+        // 须用 hasDescendant 下钻到标题文字；actionOnItem 一步完成滚动定位+点击。
+        onView(withId(R.id.source_list)).inRoot(isDialog())
+                .perform(RecyclerViewActions.actionOnItem(
+                        hasDescendant(withText(R.string.preset_hls)), click()));
 
         CountDownLatch ready = new CountDownLatch(1);
         AtomicReference<String> currentUri = new AtomicReference<>("");
