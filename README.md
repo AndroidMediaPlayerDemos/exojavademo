@@ -74,6 +74,17 @@ Azure Media Services 可以与 SharePoint 配合使用，尽管这两个服务�
 
 因此，直接从SharePoint播放视频主要是通过HTTP(S)协议，而不是专门的流媒体协议。如果有更高级的播放需求，可能需要考虑其他的视频托管和传输解决方案。
 
+### 鉴权直连的实现（T4.2 已落地）
+
+SharePoint 文件直连 URL 受 Cookie 鉴权（`FedAuth` 会话 Cookie + `rtFa` 刷新 Cookie），播放器侧不带凭据会得到 401/403。本工程的打通方式（`SharePointCookieBridge`）：
+
+1. WebView（FR-10 认证实验页）完成登录，`android.webkit.CookieManager` 中出现 rtFa / FedAuth；
+2. 提取这两个 Cookie 写入 JVM `java.net.CookieManager` 的 CookieStore，并 `CookieHandler.setDefault(...)` 全局生效；
+3. ExoPlayer 侧**无需任何配置**：Media3 1.11.1 的 `DefaultHttpDataSource` 已移除显式 CookieHandler 接口，但其底层的 `HttpURLConnection` 在建立连接时会自动挂载 `CookieHandler.getDefault()` 返回的处理器（AOSP libcore `HttpHandler` 行为），因此清单请求、Range 分段请求、302 跟随的每一跳都会自动带上 Cookie——这是「`setDefault` 即可」而「静态塞 Cookie 请求头」做不到跟随重定向的原因；
+4. 重新登录后同名 Cookie 覆盖旧值，直接重试即可，无需清缓存。
+
+注意点：写入 CookieStore 时 domain 设为精确主机（不带前导点），避免凭据泄漏到其他租户子域；凭据只在存储间搬运，不进界面与日志。
+
 ## 流媒体协议和http协议
 
 使用专门的流媒体协议（如HLS、DASH）相比于直接通过HTTP/HTTPS下载和播放视频文件，通常可以提供更平滑、更优化的观看体验，尤其是在网络条件变化或不理想的情况下。这得益于流媒体协议设计中的一些关键特性：

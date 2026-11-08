@@ -92,8 +92,9 @@
   同时确认 SharePoint 权限模型与令牌（rtFa / FedAuth）生命周期；**调研结论需同步更新 PRD FR-7 与 README**。
   **结果（2026-11-07）：完成**（应「M4 路线调研先行」指示提前执行）。主路线定为 **A：SharePoint 静态文件 + Cookie 注入**（WebView 取 rtFa/FedAuth → Media3 `CookieHandler` → 直连 URL）；备选 A2：Graph `/drive/items/{id}/content` 换预认证短时 URL；ABR 演进 B：Blob 离线打包 HLS/DASH + CDN（微软官方 AMS 迁移工具即此形态）；Microsoft Stream 不开放第三方原生播放，排除。核实：AMS/Azure Media Player 均退役且无第一方替代；FedAuth ~10h（条件访问可至 ~1h）、rtFa 静默续期；权限复用 SharePoint 站点/库权限；单文件上限 250GB。决策记录：`docs/enterprise-source-research.md`；PRD 已升 v1.3，README Azure 节已加失效警告。
 
-- [ ] **T4.2 凭据播放链路**（3 人日）
+- [x] **T4.2 凭据播放链路**（3 人日）
   基于 FR-10 与 T4.1 路线 A：WebView 登录 → 提取 rtFa / FedAuth → 注入 Media3 `CookieHandler`（`CookieHandler.setDefault` 先于建播放器）→ ExoPlayer 播放 SharePoint 直连 URL；A2（Graph 预认证 URL）为备选。开放项实测：非交互拉流限流、条件访问对 WebView 登录的影响、两种 URL 形态的 Range 兼容。
+  **结果（2026-11-08）：代码完成**。`SharePointCookieBridge` 从 WebView Cookie 存储提取 rtFa/FedAuth 写入 JVM `CookieManager`（`CookieHandler.setDefault` 于建播放器前就位）；实测确认 media3 1.11.1 `DefaultHttpDataSource` 已移除显式 CookieHandler 接口，但底层 `HttpURLConnection` 自动挂载默认 CookieHandler，故清单/Range/302 每跳全程带凭据（机制回写 README「鉴权直连的实现」节）。主界面加载 `*.sharepoint.com` 源时自动注入：有凭据直接播；无凭据弹窗引导去认证页（可「仍要播放」观察 401/403 路径）；重试前静默刷新凭据。真机验收（真实租户登录播放、限流、条件访问、URL 形态 Range 兼容）待设备，验收清单暂不勾。
 
 - [ ] **T4.3 鉴权失败路径**（1 人日）
   401/403 明确提示（主因：FedAuth 过期或账号无站点权限）、引导回 WebView 重新登录刷新 Cookie；凭据不落明文日志（Cookie 全程不经日志输出）。
@@ -111,7 +112,7 @@
 M1（T1.3 ✅；T1.1/T1.2/T1.4 真机项暂缓，待设备）
  └─ T2.1 ✅ → T2.5（迁移）✅ → T2.3 ✅ → T2.2 ✅ → T2.4 ✅
      └─ T3.1（需真机）→ T3.2 ✅（代码）→ T3.3（需模拟器）
-         └─ T4.1 ✅（路线调研先行完成）→ T4.2 → T4.3 → T4.4
+         └─ T4.1 ✅（路线调研先行完成）→ T4.2 ✅（代码）→ T4.3 → T4.4
 ```
 
 工作量合计约 **20 人日**（不含 T1.2 验收返工与 T4 调研引发的方案调整）。

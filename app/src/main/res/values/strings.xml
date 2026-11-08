@@ -43,4 +43,10 @@
     <string name="cookie_checking">正在加载页面并检查认证 Cookie…</string>
     <string name="cookie_found">已检测到认证 Cookie：rtFa=%1$b · FedAuth=%2$b</string>
     <string name="cookie_missing">未检测到 rtFa / FedAuth（尚未登录，或不是 SharePoint 站点）</string>
+
+    <string name="sharepoint_cookies_injected">已注入 SharePoint 登录凭据（rtFa / FedAuth）</string>
+    <string name="sharepoint_login_title">未检测到 SharePoint 登录凭据</string>
+    <string name="sharepoint_login_message">此源来自 SharePoint，需要登录后才能播放。请先到「SharePoint 认证实验」页完成登录，再回来加载此地址。凭据不会显示，也不会写入日志。</string>
+    <string name="sharepoint_go_login">去登录</string>
+    <string name="sharepoint_play_anyway">仍要播放</string>
 </resources>

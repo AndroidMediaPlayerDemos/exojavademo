@@ -20,6 +20,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.OptIn;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -38,6 +39,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.service.IMyAidlInterface;
 
+import java.net.CookieHandler;
+import java.net.CookieManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,6 +57,9 @@ public class MainActivity extends AppCompatActivity {
     private final float[] speeds = new float[]{0.5f, 1f, 1.5f, 2f};
     private float currentSpeed = 1.0f; // 默认播放速度为1.0x
     private SourceRepository sourceRepository;
+    private CookieManager mediaCookieManager;
+    private SharePointCookieBridge cookieBridge;
+    private String currentSourceUrl;
 
     private PlayerView playerView;
     private View errorPanel;
@@ -145,6 +151,12 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_retry).setOnClickListener(v -> retryPlayback());
         setupGestureControl();
 
+        // FR-7/T4.2：JVM CookieHandler 须在建播放器前就位 —— DefaultHttpDataSource
+        // 底层 HttpURLConnection 每次请求（含 302 跟随）自动从这里取 Cookie
+        mediaCookieManager = new CookieManager();
+        CookieHandler.setDefault(mediaCookieManager);
+        cookieBridge = new SharePointCookieBridge(mediaCookieManager);
+
         initializePlayer();
     }
 
@@ -216,10 +228,43 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadSource(String url) {
+        if (player == null || !prepareEnterpriseSource(url)) {
+            return;
+        }
+        applySource(url);
+    }
+
+    /**
+     * FR-7/T4.2：SharePoint 源加载前置 —— 从 WebView 提取 rtFa / FedAuth 注入
+     * CookieHandler；未登录时不直接起播（必然 401/403），引导先去认证页。
+     *
+     * @return 是否继续加载
+     */
+    private boolean prepareEnterpriseSource(String url) {
+        if (!SharePointCookieBridge.isSharePointUrl(url)) {
+            return true;
+        }
+        if (cookieBridge.syncCookies(url)) {
+            Toast.makeText(this, R.string.sharepoint_cookies_injected, Toast.LENGTH_SHORT).show();
+            return true;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.sharepoint_login_title)
+                .setMessage(R.string.sharepoint_login_message)
+                .setPositiveButton(R.string.sharepoint_go_login,
+                        (d, w) -> startActivity(new Intent(this, WebViewActivity.class)))
+                .setNegativeButton(R.string.sharepoint_play_anyway, (d, w) -> applySource(url))
+                .show();
+        return false;
+    }
+
+    /** 切源并起播：收起错误面板、记入历史。 */
+    private void applySource(String url) {
         if (player == null) {
             return;
         }
         errorPanel.setVisibility(View.GONE);
+        currentSourceUrl = url;
         player.setMediaItem(MediaItem.fromUri(Uri.parse(url)));
         player.prepare();
         player.setPlayWhenReady(true);
@@ -231,6 +276,11 @@ public class MainActivity extends AppCompatActivity {
     private void retryPlayback() {
         if (player == null) {
             return;
+        }
+        // SharePoint 源重试前刷新凭据：用户可能刚在认证页重新登录
+        if (currentSourceUrl != null
+                && SharePointCookieBridge.isSharePointUrl(currentSourceUrl)) {
+            cookieBridge.syncCookies(currentSourceUrl);
         }
         errorPanel.setVisibility(View.GONE);
         player.prepare();
