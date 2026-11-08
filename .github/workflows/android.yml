@@ -28,7 +28,10 @@ jobs:
   # T3.3 主流程仪器测试（Espresso）：起播、倍速切换、源切换
   instrumented-tests:
 
-    runs-on: ubuntu-latest
+    # ubuntu-latest 已切 Ubuntu 26.04（2026-10-19 起），该镜像 runner 用户无 /dev/kvm
+    # 权限，模拟器被降级纯软件模拟无法启动（run 42443553123 / 42444816509）。
+    # 钉 24.04 直至 26.04 镜像修复 KVM 组权限。
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
 
     steps:
