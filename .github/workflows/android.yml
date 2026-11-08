@@ -28,9 +28,8 @@ jobs:
   # T3.3 主流程仪器测试（Espresso）：起播、倍速切换、源切换
   instrumented-tests:
 
-    # ubuntu-latest 已切 Ubuntu 26.04（2026-10-19 起），该镜像 runner 用户无 /dev/kvm
-    # 权限，模拟器被降级纯软件模拟无法启动（run 42443553123 / 42444816509）。
-    # 钉 24.04 直至 26.04 镜像修复 KVM 组权限。
+    # ubuntu-latest 已切 Ubuntu 26.04（2026-10-19 起）；24.04/26.04 的 20261101 批次镜像
+    # KVM 组归属均有回归（见下方 Grant KVM access 步）。钉成熟 24.04 + 显式放权。
     runs-on: ubuntu-24.04
     timeout-minutes: 40
 
@@ -45,6 +44,13 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
+    # 20261101 批次 runner 镜像（24.04/26.04 皆然）runner 用户不在 kvm 组，/dev/kvm 无权限，
+    # 模拟器被 action 降级 -accel off 纯软件模拟、无法启动（run 42443553123/42444816509/42445108071）。
+    # chmod 666 在 devtmpfs 上即时生效，无需重新登录生效组归属。
+    - name: Grant KVM access and verify
+      run: |
+        sudo chmod 666 /dev/kvm
+        /usr/local/lib/android/sdk/emulator/emulator -accel-check || true
     - name: Run instrumented tests on emulator
       uses: reactivecircus/android-emulator-runner@v2
       with:
