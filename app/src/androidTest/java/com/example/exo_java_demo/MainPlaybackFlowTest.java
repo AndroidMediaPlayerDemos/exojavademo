@@ -7,7 +7,6 @@ import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.ui.PlayerView;
 import androidx.test.core.app.ActivityScenario;
-import androidx.test.espresso.contrib.RecyclerViewActions;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.After;
@@ -21,9 +20,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
-import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -106,11 +105,12 @@ public class MainPlaybackFlowTest {
     @Test
     public void sourceSwitch_playsHlsPreset() throws InterruptedException {
         onView(withId(R.id.btn_source)).perform(click());
-        // 条目根是 LinearLayout（标题+url 两个 TextView），scrollTo 的匹配器针对条目根视图，
-        // 须用 hasDescendant 下钻到标题文字；actionOnItem 一步完成滚动定位+点击。
-        onView(withId(R.id.source_list)).inRoot(isDialog())
-                .perform(RecyclerViewActions.actionOnItem(
-                        hasDescendant(withText(R.string.preset_hls)), click()));
+        // 条目点击 listener 挂在条目根（LinearLayout），标题 TextView 非 clickable，
+        // Espresso 的 click 走触摸分发会自然穿透到根；列表短、预置条目均在屏内，
+        // 直接按文字定位即可（scrollTo/actionOnItem 要求条目 90% 可见，软键盘
+        // 自动弹起时遮挡列表会误判，故先收键盘）。
+        onView(withId(R.id.source_input)).inRoot(isDialog()).perform(closeSoftKeyboard());
+        onView(withText(R.string.preset_hls)).inRoot(isDialog()).perform(click());
 
         CountDownLatch ready = new CountDownLatch(1);
         AtomicReference<String> currentUri = new AtomicReference<>("");
