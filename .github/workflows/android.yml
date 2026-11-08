@@ -64,15 +64,14 @@ jobs:
         disable-animations: true
         script: |
           set -e
-          # 常规用例（T3.3 主流程三用例；ABR 实测需主机限速协调，用 notClass 隔离）
-          ./gradlew connectedDebugAndroidTest --stacktrace \
-            -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.exo_java_demo.AbrThrottleTest
+          # 常规用例（T3.3 主流程三用例；ABR 实测需主机限速协调，用 notClass 隔离）。
+          # 注意：单行调用——上一轮续行符 \ 经 action 传递后在第二条调用处断裂，gradle 收到裸 \ 参数
+          ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.exo_java_demo.AbrThrottleTest
           # T3.1 ABR 实测：切 DASH 源 → 满速爬档打点 HOLD:high → 限速 edge 等下调打点 HOLD:low
           # → 恢复 full 等回升；阶段经 Settings.Global abr_phase 通知用例
           adb logcat -c
           adb shell settings put global abr_phase none
-          ./gradlew connectedDebugAndroidTest --stacktrace \
-            -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest &
+          ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest &
           GRADLE_PID=$!
           wait_marker() {
             marker=$1; deadline=$((SECONDS + $2))
