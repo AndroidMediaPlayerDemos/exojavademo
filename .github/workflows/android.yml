@@ -26,6 +26,7 @@ jobs:
       run: ./gradlew build
 
   # T3.3 主流程仪器测试（Espresso）：起播、倍速切换、源切换
+  # T3.1 ABR 弱网实测：用例打点 logcat，脚本按标记限速/恢复，阶段经 Settings.Global 回传
   instrumented-tests:
 
     # ubuntu-latest 已切 Ubuntu 26.04（2026-10-19 起）；24.04/26.04 的 20261101 批次镜像
@@ -61,4 +62,32 @@ jobs:
         emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
         emulator-boot-timeout: 25
         disable-animations: true
-        script: ./gradlew connectedDebugAndroidTest --stacktrace
+        script: |
+          set -e
+          # 常规用例（T3.3 主流程三用例；ABR 实测需主机限速协调，用 notClass 隔离）
+          ./gradlew connectedDebugAndroidTest --stacktrace \
+            -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.exo_java_demo.AbrThrottleTest
+          # T3.1 ABR 实测：切 DASH 源 → 满速爬档打点 HOLD:high → 限速 edge 等下调打点 HOLD:low
+          # → 恢复 full 等回升；阶段经 Settings.Global abr_phase 通知用例
+          adb logcat -c
+          adb shell settings put global abr_phase none
+          ./gradlew connectedDebugAndroidTest --stacktrace \
+            -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest &
+          GRADLE_PID=$!
+          wait_marker() {
+            marker=$1; deadline=$((SECONDS + $2))
+            while [ $SECONDS -lt $deadline ]; do
+              if adb logcat -d -s ABR_TEST:I 2>/dev/null | grep -q "$marker"; then return 0; fi
+              sleep 3
+            done
+            echo "::error::等待标记 $marker 超时（用例未到达该阶段或已失败）"
+            return 1
+          }
+          wait_marker "HOLD:high" 300
+          adb emu network speed edge
+          adb shell settings put global abr_phase edge
+          wait_marker "HOLD:low" 360
+          adb emu network speed full
+          adb shell settings put global abr_phase full
+          wait "$GRADLE_PID"
+          adb emu network speed full
