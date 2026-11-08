@@ -65,8 +65,8 @@ jobs:
         script: |
           # ⚠ 本 action 将 script 逐行各自以独立 sh -c 执行：禁止函数定义、续行符、
           # 跨行变量与多行控制块（run 42447952918/42482408548 两次踩坑实证）。
-          # 常规用例（T3.3 主流程三用例；ABR 实测需主机限速协调，用 notClass 隔离）
-          ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.exo_java_demo.AbrThrottleTest
+          # 常规用例（T3.3 主流程三用例；ABR/探针需主机协调或仅诊断，用 notClass 隔离）
+          ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.notClass=com.example.exo_java_demo.AbrThrottleTest,com.example.exo_java_demo.AbrMeterProbeTest
           # T3.1 ABR 实测：宿主限速代理（QEMU console network speed 在 google_atd 镜像
           # 交付失真、guest 内核缺整形模块，均已弃用——详见 scripts/abr_shaper_proxy.py 头注）
           nohup python3 scripts/abr_shaper_proxy.py > /tmp/abr_proxy.log 2>&1 &
@@ -75,6 +75,13 @@ jobs:
           # 超时无任何诊断可看；若 runner→akamai 链路慢于此数，ABR 爬不到 576p 属链路而非用例问题）
           curl -sf --max-time 20 -o /tmp/mpd_probe "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps.mpd" || { echo "::error::代理上游拉取 MPD 失败"; cat /tmp/abr_proxy.log; exit 1; }
           curl -s --max-time 40 -o /dev/null -w "seg_probe http=%{http_code} bytes=%{size_download} speed=%{speed_download}B/s\n" "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps_1280x720_4000k/bbb_30fps_1280x720_4000k_5.m4v"
+          adb logcat -c
+          # 临时诊断（run 42488899281 est=0 冻结溯源）：带宽采样探针，75s 必过，
+          # 对比 EST（meter 估计）与 LOAD（每分片实测速率）是否背离后继续主用例
+          nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrMeterProbeTest > /tmp/probe_gradle.log 2>&1 &
+          n=0; until grep -qE "BUILD (SUCCESSFUL|FAILED)" /tmp/probe_gradle.log 2>/dev/null; do sleep 5; n=$((n+1)); if [ $n -gt 60 ]; then echo "::warning::探针 gradle 超时"; break; fi; done
+          echo "--- ABR_PROBE 诊断打点 ---"
+          adb logcat -d -s ABR_PROBE:I | tail -80
           adb logcat -c
           adb shell settings put global abr_phase none
           nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest > /tmp/abr_gradle.log 2>&1 &
