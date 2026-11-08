@@ -16,7 +16,7 @@ androidx.media3.exoplayer.ExoPlayer example
 - 跨进程与备用引擎：自托管 AIDL 服务（`add(5, 6)` 演示）；`android.media.MediaPlayer` + SurfaceView 备用播放页（两引擎对比）
 - 企业源：WebView 登录 → rtFa/FedAuth 注入 CookieHandler → SharePoint 直连播放；401/403 明确成因提示与「重新登录」引导（机制见下文[「鉴权直连的实现」](#鉴权直连的实现t42-已落地)）
 
-**技术栈**：androidx.media3 1.11.1（exoplayer + ui）· AGP 8.10.1 · Gradle 8.11.1 · JDK 17 · minSdk 24 / targetSdk 34 / compileSdk 36 · Java（无 Kotlin 业务代码）
+**技术栈**：androidx.media3 1.11.1（exoplayer + hls + dash + ui；HLS/DASH 为反射装载的可选模块，缺包编译不报错但运行时不可播，T3.3 CI 仪器测试抓出后补齐）· AGP 8.10.1 · Gradle 8.11.1 · JDK 17 · minSdk 24 / targetSdk 34 / compileSdk 36 · Java（无 Kotlin 业务代码）
 
 **构建**：`./gradlew build`（与 CI 同款，含 lint 与 debug/release 双构建）
 

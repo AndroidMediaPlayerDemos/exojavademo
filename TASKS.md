@@ -77,10 +77,11 @@
   缓冲/错误态 UI 与一键重试、±10s 快进快退、横滑 seek、音量/亮度竖滑手势。
   **结果（2026-11-07）：代码完成**。缓冲用 PlayerView 内置 `show_buffering="when_playing"`；错误升级为居中面板（错误码 + 重试，重新 prepare 当前源，换源/重新起播自动收起）；±10s 按钮（`seekBack/seekForward` + 10s 步长）；手势：单击切控制条、横滑 seek（松手生效，时长等比映射 + 目标提示）、左半屏亮度/右半屏音量竖滑（即滑即调 + 百分比提示），屏幕左右边缘 24dp 避让系统返回手势。Media3 opt-in API（seek 步长、控制条操作）按方法级 `@OptIn` 标注；本地 lint + 双构建绿灯。FR-8 验收清单勾选与手感确认待真机（并入 T1.1）。
 
-- [ ] **T3.3 最小仪器测试集**（2 人日）
+- [x] **T3.3 最小仪器测试集**（2 人日）
   主流程 Espresso：起播、倍速切换、源切换。（原「迁移前先行」计划已取消：T2.1 已决策迁移且 T2.5 先行落地，测试集直接基于 Media3 编写。）
+  **结果（2026-11-08）：完成**。`MainPlaybackFlowTest` 三用例（起播 latch onIsPlayingChanged、倍速对话框 onPlaybackParametersChanged、源切换至 HLS 预置并断言 `.m3u8` + READY）在 GitHub Actions 模拟器（`instrumented-tests` job，API 30 google_atd + KVM）全绿，run 42447566302。排障链条留档：① 20261101 批次 runner 镜像无 kvm 组归属 → 启动前 `chmod 666 /dev/kvm` + 钉 ubuntu-24.04；② 预置条目定位用 `withText` 直点（条目根为 LinearLayout，RecyclerView 滚动 API 的条目根匹配不适用），点击前收软键盘；③ **测试抓出 app 真缺陷：`media3-exoplayer-hls/-dash` 可选模块未打包（DefaultMediaSourceFactory 反射装载，编译不报错、运行时 ClassNotFoundException），已补依赖（781a621）——此前 HLS/DASH 预置源在任何设备上都不可播**。诊断手法留档：Espresso 失败时把 Cause 链解包进断言消息，绕过 AGP 控制台截断。
 
-**M3 完成门**：FR-6 / FR-8 验收清单全勾；测试集在 CI 中运行。
+**M3 完成门**：FR-6 / FR-8 验收清单全勾；测试集在 CI 中运行。（测试集 ✅ 2026-11-08；FR-6 验收待 T3.1 CI 限速实测 + 真机，FR-8 手感项待真机）
 
 ---
 
@@ -114,7 +115,7 @@
 ```text
 M1（T1.3 ✅、T1.4 取消；T1.1/T1.2 真机项暂缓，待设备）
  └─ T2.1 ✅ → T2.5（迁移）✅ → T2.3 ✅ → T2.2 ✅ → T2.4 ✅
-     └─ T3.1（需真机）→ T3.2 ✅（代码）→ T3.3（需模拟器）
+     └─ T3.1（CI 模拟器限速协调，代码已备）→ T3.2 ✅（代码）→ T3.3 ✅（CI 模拟器）
          └─ T4.1 ✅（路线调研先行完成）→ T4.2 ✅（代码）→ T4.3 ✅（代码）→ T4.4 ✅（清单入库）
 ```
 

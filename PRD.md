@@ -244,7 +244,7 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 - ~~轨道选择功能待在新结构上恢复（FR-3）~~ 已恢复（M2）
 - ~~`MediaPlayerActivity` 错误处理较简陋（`printStackTrace`）~~ 已补齐错误回调与用户提示（M2 技术债清理）；`WebViewActivity` 无 catch 块、无此问题。弱网与坏地址场景仍需真机过一遍（并入 T1.1）
 - ~~历史实验代码（带宽设置，commit `5cdb4bf`）已清理，但结论未沉淀进文档~~ 已如实沉淀（README「历史实验记录」：当时未记录量化数据；量化结论推迟至 T3.1 弱网 ABR 实测）
-- 无自动化 UI 测试，仅存模板单测/仪器测试（最小测试集仍规划于 M3）
+- 最小仪器测试集已落地 CI（T3.3）：主流程三用例（起播/倍速/源切换）+ 模板用例，GitHub Actions 模拟器全绿；扩展回归集见 T1.1
 
 ## 7. 里程碑规划
 
@@ -253,7 +253,7 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | M0 | 基础播放与控制 | 在线播放、倍速选择、轨道选择（初版，后移除）、CI 搭建、README 知识库 | 已完成 | 2024-03 ～ 2024-04 |
 | M1 | 跨应用通信与双工程集成 | FR-4 AIDL 自托管绑定与调用（含异常与生命周期收敛）、FR-9 MediaPlayer 备用引擎、FR-10 SharePoint 认证实验页 | 代码完成并提交，待真机验收（T1.1/T1.2/T1.4） | 当前迭代 |
 | M2 | 播放能力回归 | FR-3 轨道选择恢复、FR-5 播放源管理、Media3 迁移（评估 + 实施）、技术债清理 | 代码完成，待真机验收（并入 T1.1） | 当前迭代 |
-| M3 | 自适应流验证 | FR-6 HLS/DASH/ABR 实测、FR-8 播放体验增强 | T3.2 代码完成（FR-8 待真机验收）；FR-6 实测与 T3.3 测试集需真机/模拟器 | 当前迭代 |
+| M3 | 自适应流验证 | FR-6 HLS/DASH/ABR 实测、FR-8 播放体验增强 | T3.2 代码完成（FR-8 待真机验收）；T3.3 测试集已在 CI 模拟器全绿；FR-6 实测待 T3.1 CI 限速自动化 + 真机 | 当前迭代 |
 | M4 | 企业源 PoC | FR-7 SharePoint 鉴权播放验证（路线已定：Cookie 注入直连，AMS 已退役出局，见 `docs/enterprise-source-research.md`） | T4.1–T4.4 全部完成（代码 + 成本清单入库）；FR-7 验收勾选待真实租户真机实测 | 当前迭代 |
 
 ## 8. 风险与依赖
@@ -264,7 +264,7 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | FR-4 曾依赖目标应用 `mediaplayerwithsurfaceview` 同设备安装 | 低（已缓解） | 缺少宿主时无法验证绑定链路 | 服务端已内置为 `MyService`（自托管），可独立验证；外部工程 2026-11-08 删除且未保留副本，需要跨应用场景时按本库同构代码重建外部宿主 |
 | 企业源鉴权模型不确定（SharePoint 权限 / Azure 令牌） | 低（已缓解） | M4 范围可能扩大或受阻 | T4.1 已核实：权限复用 SharePoint 站点/库权限，FedAuth ~10h（条件访问可至 ~1h）、rtFa 静默续期；AMS 路线随其 2024-06-30 退役出局，主路线收敛为 SharePoint Cookie 注入（`docs/enterprise-source-research.md`）。剩余开放项：租户条件访问对 WebView 登录的影响、非交互拉流限流阈值，T4.2/T4.3 实测 |
 | 默认测试源为 Google 公网存储，部分网络不可达 | 低（已缓解） | 演示与验证受阻 | FR-5 已落地预置多源列表（MP4/HLS/DASH 各一条，2026-11 验证可达）；原 gtv 桶整桶 403 已弃用 |
-| 无自动化 UI 测试，回归靠手测 | 低 | 重构风险放大 | Media3 迁移已靠 CI 构建绿灯 + 代码评审承接；最小仪器测试集仍规划于 M3 |
+| 无自动化 UI 测试，回归靠手测 | 低 | 重构风险放大 | 最小仪器测试集已在 CI 模拟器运行（T3.3，2026-11-08 全绿），并已抓出 HLS/DASH 模块缺失缺陷；扩展回归集规划于 T1.1 |
 
 ## 9. 附录
 
@@ -299,3 +299,4 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | v1.6 | 2026-11-08 | T4.3 FR-7 鉴权失败路径代码交付：SharePoint 源 401/403 时错误面板明确成因（Cookie 过期/无站点权限）并提供「重新登录」入口，重试前静默刷新凭据；错误路径仅展示数字状态码，凭据相关信息不进界面与日志 |
 | v1.7 | 2026-11-08 | T4.4 集成成本与限制清单入库 `docs/enterprise-integration-cost.md`（权限模型、FedAuth 生命周期、格式无 ABR、缓存现状、零服务端成本、4 项待实测租户行为）；FR-7 第三条验收勾选，M4 代码与产出物全部收口，剩余验收勾选待真实租户真机 |
 | v1.8 | 2026-11-08 | 外部工程收口：ExoPlayerCustomUI（功能本库已对齐）与 MediaPlayerWithSurfaceView（AIDL/MediaPlayer/WebView Cookie 实验均已集成）未提交改动先行提交后删除源目录（曾 zip 归档，同日应指示删除归档、未保留副本）；T1.4 跨应用绑定验证随之取消（跨进程链路由自托管 MyService 覆盖），风险表同步 |
+| v1.9 | 2026-11-08 | T3.3 最小仪器测试集在 CI 模拟器全绿（run 42447566302）：起播/倍速/源切换三用例 + `instrumented-tests` job（API 30 google_atd，KVM 需 `chmod 666 /dev/kvm`——20261101 批次 runner 镜像无 kvm 组归属，钉 ubuntu-24.04）；**测试抓出并修复 app 缺陷：`media3-exoplayer-hls/-dash` 未打包（DefaultMediaSourceFactory 反射装载可选模块，缺包编译不报错、运行时 ClassNotFoundException，此前 HLS/DASH 源在任何设备不可播）**；M3 完成门「测试集在 CI 运行」达成 |
