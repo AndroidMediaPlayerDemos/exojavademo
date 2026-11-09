@@ -135,8 +135,24 @@ SharePoint 文件直连 URL 受 Cookie 鉴权（`FedAuth` 会话 Cookie + `rtFa`
   ExoPlayer 的 `DefaultHttpDataSource.Factory` 挂接 `DefaultBandwidthMeter`（`setTransferListener`），
   并改用 `ProgressiveMediaSource` 构造播放源，用于观测下载吞吐。该实验代码后续已移除，
   **未留下量化结论**（当时默认源所在的 gtv-videos-bucket 现已整桶 403，无法复测原始场景）。
-  现基线为 androidx.media3 1.11.1；带宽相关行为将在 M3 的弱网 ABR 实测（T3.1）中
-  以多码率预置源重新验证，结论届时回写本文。
+  量化结论已由 **T3.1 弱网 ABR 实测（2026-11-09，CI 模拟器 run 42554954898，`AbrThrottleTest`）** 补齐：
+  DASH akamai bbb_30fps（阶梯 180~1080p，用例封顶 576p）满速 ~10s 爬到 576p；
+  限速 800kbps 后 est 收敛 ~800kbps、缓冲 46s→24s 触底（恰为 AdaptiveTrackSelection
+  25s `maxDurationForQualityDecrease` 下切阈值），**~60s 后 576→180 降档且全程持续播放**
+  （缓冲回建至 53s 无卡顿），解除限速后 **~25s 内 180→270→576 恢复**。配套三条工程结论：
+  ① `DefaultHttpDataSource` 默认 8s 读超时在弱网下是产品缺陷——在飞大分片（720p ≈2.4MB）
+  传输必超时，重试取同一高档分片再超时，~3 次重试后抛致命 Source error 进 IDLE
+  （任一限速档均 40s~2min 内死亡），本项目已放宽读超时至 30s（连接超时维持 8s）；
+  ② 模拟器侧限速通路不可用——`adb emu network speed` 在 google_atd 镜像上配置值与实际
+  交付严重不符（各档实测均 ~15-30kbps 涓流），guest 内核又缺 ingress 整形模块，实测改用
+  宿主限速代理 `scripts/abr_shaper_proxy.py`（上游全速预取 + 令牌桶涓流，
+  不限速透传零损耗），编排脚本经 `__ctrl` 端点实时切换速率；
+  ③ **media3 视口约束会按物理屏截断 ABR 阶梯**——`DefaultTrackSelector` 仅让不超过
+  "最小免放大铺屏档"像素数的轨道进自适应组（`getMaxVideoPixelsToRetainForViewport`），
+  小屏设备高码率档直接不入选、与带宽估计无关（CI atd 模拟器屏 320x640，自适应组封顶
+  640x360、est 44~109Mbps 也冻结 360p；本地 1080p 屏则可爬满）。行为本身合理（小屏
+  不拉超清），但小屏 CI/低端机上的 ABR 测试必须 `clearViewportSizeConstraints()` 消除
+  屏幕相关性——诊断特征：全档位 supported 而选集按像素数切分。
 
 - **测试源可用性（2026-11 实测）**：`gtv-videos-bucket` 整桶 403（原 TearsOfSteel/
   BigBuckBunny 等示例源全部失效）；当前预置源为 W3C Sintel 预告片（MP4）、

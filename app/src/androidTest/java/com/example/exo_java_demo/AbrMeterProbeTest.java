@@ -32,11 +32,13 @@ import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
 /**
- * 带宽采样诊断探针（不做档位断言、必过；经 -Pclass 单独驱动，默认批次以
- * notClass 排除，仅诊断 CI est 异常时启用）：CI run 42488899281 中 est 冻结
- * 0kbps、档位冻结 360p，而缓冲数秒内打满 50s——带宽采样与真实传输矛盾。
- * 75s 观察窗内全量打点 onBandwidthEstimate 原始值与每次 onLoad 实测速率，
- * logcat 即结论（est 与 LOAD rate 的背离/一致性）。
+ * 带宽采样/选集诊断探针（不做档位断言、必过；经 -Pclass 单独驱动，默认批次以
+ * notClass 排除）。溯源 CI 恒 360p 时三轮迭代定位两层根因：est 显示恒 0 系
+ * onBandwidthEstimate 槽位误读（槽 2 是窗口 ms、槽 4 才是估计值）；档位冻结系
+ * media3 视口约束按物理屏截断自适应组（atd 小屏 320x640 → 仅 ≤640x360 档入选，
+ * run 42536919418 全档 sup=true 而选集按像素数切分为证）。根因已收口
+ * （run 42554954898 全绿），保留作 ABR 异常时的取证工具：75s 观察窗打点
+ * 全档位 sel/sup/支持码、PARAMS（含 viewport）、est 原始值与每分片实测速率。
  */
 @OptIn(markerClass = UnstableApi.class)
 @RunWith(AndroidJUnit4.class)

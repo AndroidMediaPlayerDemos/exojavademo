@@ -77,15 +77,9 @@ jobs:
           echo "--- MPD 档位清单（与本地基准对比是否同源） ---"; grep -o '<Representation[^>]*' /tmp/mpd_probe
           curl -s --max-time 40 -o /dev/null -w "seg_probe http=%{http_code} bytes=%{size_download} speed=%{speed_download}B/s\n" "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps_1280x720_4000k/bbb_30fps_1280x720_4000k_5.m4v"
           adb logcat -c
-          echo "--- 模拟器屏幕尺寸（视口约束根因取证：atd 小屏把 >640x360 档挡出自适应组） ---"
+          # 屏幕尺寸留档：media3 视口约束按物理屏截断自适应组（atd 小屏曾致恒 360p，
+          # 见 README 历史实验记录；用例已 clearViewportSizeConstraints 不受影响）
           adb shell wm size
-          # 临时诊断（run 42488899281 est=0 冻结溯源）：带宽采样探针，75s 必过，
-          # 对比 EST（meter 估计）与 LOAD（每分片实测速率）是否背离后继续主用例
-          nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrMeterProbeTest > /tmp/probe_gradle.log 2>&1 &
-          n=0; until grep -qE "BUILD (SUCCESSFUL|FAILED)" /tmp/probe_gradle.log 2>/dev/null; do sleep 5; n=$((n+1)); if [ $n -gt 60 ]; then echo "::warning::探针 gradle 超时"; break; fi; done
-          echo "--- ABR_PROBE 诊断打点 ---"
-          adb logcat -d -s ABR_PROBE:I | tail -80
-          adb logcat -c
           adb shell settings put global abr_phase none
           nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest > /tmp/abr_gradle.log 2>&1 &
           # 轮询落盘再 grep（dash 无进程替换）；用例若提前 BUILD FAILED 立即跳出让诊断先行

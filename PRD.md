@@ -2,7 +2,7 @@
 
 | 文档版本 | 发布日期 | 维护人 | 代码基线 | 读者 |
 |---|---|---|---|---|
-| v1.8 | 2026-11-08 | NuovoVita | `main`（外部工程归档，T1.4 取消） | 开发团队 · 技术评审 |
+| v1.10 | 2026-11-09 | NuovoVita | `main`（T3.1 ABR 弱网 CI 实测收口） | 开发团队 · 技术评审 |
 
 > 基于 ExoPlayer 的 Android 原生视频播放验证项目 —— 从在线播放、播放控制，走向跨应用协作与企业视频源集成。
 
@@ -159,15 +159,19 @@
 
 ### FR-6 自适应流协议验证
 
-**状态：规划中 · 优先级：P2 · 里程碑：M3**
+**状态：已交付（CI 模拟器实测 ✅ 2026-11-08，真机弱网待 T1.1） · 优先级：P2 · 里程碑：M3**
 
 播放 HLS（m3u8）与 DASH（mpd）测试源，验证 ABR 自适应行为：观察网络受限时的码率升降、卡顿与恢复，为后续企业源协议选型提供实测依据。
 
 验收标准：
 
-- [ ] 至少各一条 HLS、DASH 公开测试源可正常起播与切换画质
-- [ ] 模拟弱网（限速工具）下可观察到码率自适应下调与恢复
-- [ ] 实测结论回写 README 知识库
+- [x] 至少各一条 HLS、DASH 公开测试源可正常起播与切换画质
+- [x] 模拟弱网（限速工具）下可观察到码率自适应下调与恢复
+- [x] 实测结论回写 README 知识库
+
+> 实测注记（T3.1，CI 模拟器 API 30 run 42554954898）：DASH akamai bbb_30fps（180~1080p，用例封顶 576p）满速 ~10s 爬档至 576p；800kbps 限速下 **~60s 降至 180p 且全程持续播放**（缓冲 46s→24s 触底，恰为 AdaptiveTrackSelection 25s 下切阈值），解除限速后 **~25s 内 180→270→576 恢复**——弱网降档保播与恢复升档均成立，`AbrThrottleTest` 在 CI 全绿。
+> 实测同步抓出并修复产品缺陷：`DefaultHttpDataSource` 默认 8s 读超时使弱网在飞大分片必超时，重试耗尽抛致命 Source error 进 IDLE（任一限速档均 ~40s~2min 死亡）——读超时放宽 30s（连接超时维持 8s，坏源/不可达错误路径不受影响）。
+> 工具链结论：模拟器侧限速通路不可用（`adb emu network speed` 交付失真、guest 内核缺整形模块），实测采用宿主限速代理 `scripts/abr_shaper_proxy.py`（上游全速预取 + 令牌桶涓流，速率可切换）。CI 侧另有一非显而易见坑：media3 视口约束按物理屏截断自适应组（atd 小屏 320x640 封顶 360p、与带宽无关），用例以 `clearViewportSizeConstraints()` 消除屏幕相关性。
 
 ### FR-7 企业视频源集成
 
@@ -300,3 +304,4 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | v1.7 | 2026-11-08 | T4.4 集成成本与限制清单入库 `docs/enterprise-integration-cost.md`（权限模型、FedAuth 生命周期、格式无 ABR、缓存现状、零服务端成本、4 项待实测租户行为）；FR-7 第三条验收勾选，M4 代码与产出物全部收口，剩余验收勾选待真实租户真机 |
 | v1.8 | 2026-11-08 | 外部工程收口：ExoPlayerCustomUI（功能本库已对齐）与 MediaPlayerWithSurfaceView（AIDL/MediaPlayer/WebView Cookie 实验均已集成）未提交改动先行提交后删除源目录（曾 zip 归档，同日应指示删除归档、未保留副本）；T1.4 跨应用绑定验证随之取消（跨进程链路由自托管 MyService 覆盖），风险表同步 |
 | v1.9 | 2026-11-08 | T3.3 最小仪器测试集在 CI 模拟器全绿（run 42447566302）：起播/倍速/源切换三用例 + `instrumented-tests` job（API 30 google_atd，KVM 需 `chmod 666 /dev/kvm`——20261101 批次 runner 镜像无 kvm 组归属，钉 ubuntu-24.04）；**测试抓出并修复 app 缺陷：`media3-exoplayer-hls/-dash` 未打包（DefaultMediaSourceFactory 反射装载可选模块，缺包编译不报错、运行时 ClassNotFoundException，此前 HLS/DASH 源在任何设备不可播）**；M3 完成门「测试集在 CI 运行」达成 |
+| v1.10 | 2026-11-09 | T3.1 FR-6 ABR 弱网实测在 CI 收口（`AbrThrottleTest`，run 42554954898，ABR 批次 9 个 run 后首次通过）：满速 ~10s 爬 576p → 800kbps 限速 ~60s 降档 180p 且持续播放（缓冲 46s→24s 触底即 25s 下切阈值）→ 解除 ~25s 恢复 576p，全阶梯经 logcat SIZE/WAIT 打点可回放；**实测抓出 app 缺陷：默认 8s 读超时使弱网在飞大分片必超时、重试耗尽致命 IDLE，读超时放宽 30s（连接超时维持 8s）**；模拟器限速通路不可用（`adb emu network speed` 交付失真、guest 内核缺整形模块），改自建宿主限速代理 `scripts/abr_shaper_proxy.py`（上游预取 + 令牌桶涓流，编排经 `__ctrl` 切速率）；**CI 档位冻结真根因为 media3 视口约束**（DefaultTrackSelector 按物理屏截断自适应组，atd 小屏 320x640 封顶 360p，与带宽无关），测试以 `clearViewportSizeConstraints()` 消除屏幕相关性；FR-6 三条验收全勾，真机弱网项并入 T1.1 |

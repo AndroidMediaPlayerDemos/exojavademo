@@ -70,8 +70,9 @@
 
 > 关联：FR-6 / FR-8 / 风险表第 5 条。
 
-- [ ] **T3.1 FR-6 HLS/DASH/ABR 实测**（2 人日）
+- [x] **T3.1 FR-6 HLS/DASH/ABR 实测**（2 人日）
   复用 T2.3 预置源；限速工具模拟弱网，观察码率下调与恢复；实测结论回写 README 知识库。
+  **结果（2026-11-09）：完成**。`AbrThrottleTest`（DASH akamai bbb_30fps，180~576p）+ 工作流限速协调在 CI 模拟器全绿（run 42554954898，ABR 批次历经 9 个 run 后首次通过）：满速 ~10s 爬 576p → 800kbps 限速下 est 收敛 ~800kbps、缓冲 46s→24s 触底（25s `maxDurationForQualityDecrease` 下切阈值可见）→ **~60s 后 576→180 降档且持续播放**（缓冲回建至 53s）→ 解除后 **~25s 内 180→270→576 恢复**。排障链留档（本地五轮 + CI 三个根因）：① 模拟器限速通路全废——`adb emu network speed` 在 google_atd 镜像配置值与交付严重不符（edge/umts/数值档实测均 ~15-30kbps 涓流），guest 内核仅 `sch_htb` 无 ingress 整形 → 自建宿主限速代理 `scripts/abr_shaper_proxy.py`（python3 stdlib，上游全速预取 + 下游令牌桶涓流，`__ctrl?bps=` 切换），模拟器经 10.0.2.2 访问（仅该别名放行明文）；② **实测抓出 app 真缺陷：默认 8s 读超时使弱网在飞大分片必超时，重试耗尽抛致命 Source error 进 IDLE（37s/125s 两轮实证）** → `DefaultHttpDataSource` 读超时放宽 30s（连接超时维持 8s，坏源路径不受影响）；③ 测试防假阳性×2——est 槽位误读（`onBandwidthEstimate` 槽 2 是窗口 ms、槽 4 才是估计值，曾致"est 恒 0"误导排查方向）；播放器死亡 h=0 曾命中 `≤240` 断言 → 补 `h>0` + IDLE 快速失败；④ **CI 档位冻结真根因：视口约束**——CI 连续 8 run 恒 360p（42447952918~42554135260 首个 HOLD:high 前），三轮探针（`AbrMeterProbeTest`）排除 MPD 不同源/解码不支持/参数未生效后锁定选集异常：全档 sup=true 而仅 ≤640x360（230400px）档 sel=true。溯源 media3 1.11.1：`DefaultTrackSelector` 的 `getMaxVideoPixelsToRetainForViewport` 按物理屏取"最小免放大铺屏档"，仅不超其像素数的轨道获自适应资格；CI atd 模拟器屏 320x640（横屏 640x320）→ 上限 640x360，432p/576p 出局，**与带宽估计无关**（est 44~109Mbps 也爬不动）；本地 1080x1920 大屏不触发故能爬——同码同源不同屏。修复：测试 `clearViewportSizeConstraints()`（app 默认行为是 media3 合理设计，真机大屏不受影响；测试需与屏幕无关的确定性）；⑤ 工作流脚本三类自伤（android-emulator-runner 逐行 `sh -c` 执行模型）——禁函数/续行符/跨行变量；`pgrep -f` 匹配包装 shell 自身死循环；`grep -q X && {…}` 未命中时以 grep 退出码 1 整行判败（42554135260，HOLD:high 首次达成后即踩）→ 后者以单行 `if` 包裹。真机弱网（蜂窝/飞行模式切换）待 T1.1。
 
 - [x] **T3.2 FR-8 播放体验增强**（3 人日）
   缓冲/错误态 UI 与一键重试、±10s 快进快退、横滑 seek、音量/亮度竖滑手势。
@@ -81,7 +82,7 @@
   主流程 Espresso：起播、倍速切换、源切换。（原「迁移前先行」计划已取消：T2.1 已决策迁移且 T2.5 先行落地，测试集直接基于 Media3 编写。）
   **结果（2026-11-08）：完成**。`MainPlaybackFlowTest` 三用例（起播 latch onIsPlayingChanged、倍速对话框 onPlaybackParametersChanged、源切换至 HLS 预置并断言 `.m3u8` + READY）在 GitHub Actions 模拟器（`instrumented-tests` job，API 30 google_atd + KVM）全绿，run 42447566302。排障链条留档：① 20261101 批次 runner 镜像无 kvm 组归属 → 启动前 `chmod 666 /dev/kvm` + 钉 ubuntu-24.04；② 预置条目定位用 `withText` 直点（条目根为 LinearLayout，RecyclerView 滚动 API 的条目根匹配不适用），点击前收软键盘；③ **测试抓出 app 真缺陷：`media3-exoplayer-hls/-dash` 可选模块未打包（DefaultMediaSourceFactory 反射装载，编译不报错、运行时 ClassNotFoundException），已补依赖（781a621）——此前 HLS/DASH 预置源在任何设备上都不可播**。诊断手法留档：Espresso 失败时把 Cause 链解包进断言消息，绕过 AGP 控制台截断。
 
-**M3 完成门**：FR-6 / FR-8 验收清单全勾；测试集在 CI 中运行。（测试集 ✅ 2026-11-08；FR-6 验收待 T3.1 CI 限速实测 + 真机，FR-8 手感项待真机）
+**M3 完成门**：FR-6 / FR-8 验收清单全勾；测试集在 CI 中运行。（测试集 ✅ 2026-11-08；FR-6 CI 限速实测 ✅ 2026-11-09（T3.1 run 42554954898，降档/恢复全阶梯），FR-6/FR-8 真机项待 T1.1）
 
 ---
 
@@ -115,7 +116,7 @@
 ```text
 M1（T1.3 ✅、T1.4 取消；T1.1/T1.2 真机项暂缓，待设备）
  └─ T2.1 ✅ → T2.5（迁移）✅ → T2.3 ✅ → T2.2 ✅ → T2.4 ✅
-     └─ T3.1（CI 模拟器限速协调，代码已备）→ T3.2 ✅（代码）→ T3.3 ✅（CI 模拟器）
+     └─ T3.1 ✅（CI 模拟器限速协调，ABR 全阶梯）→ T3.2 ✅（代码）→ T3.3 ✅（CI 模拟器）
          └─ T4.1 ✅（路线调研先行完成）→ T4.2 ✅（代码）→ T4.3 ✅（代码）→ T4.4 ✅（清单入库）
 ```
 
