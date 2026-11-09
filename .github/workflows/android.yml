@@ -77,6 +77,8 @@ jobs:
           echo "--- MPD 档位清单（与本地基准对比是否同源） ---"; grep -o '<Representation[^>]*' /tmp/mpd_probe
           curl -s --max-time 40 -o /dev/null -w "seg_probe http=%{http_code} bytes=%{size_download} speed=%{speed_download}B/s\n" "http://127.0.0.1:8801/akamai/bbb_30fps/bbb_30fps_1280x720_4000k/bbb_30fps_1280x720_4000k_5.m4v"
           adb logcat -c
+          echo "--- 模拟器屏幕尺寸（视口约束根因取证：atd 小屏把 >640x360 档挡出自适应组） ---"
+          adb shell wm size
           # 临时诊断（run 42488899281 est=0 冻结溯源）：带宽采样探针，75s 必过，
           # 对比 EST（meter 估计）与 LOAD（每分片实测速率）是否背离后继续主用例
           nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrMeterProbeTest > /tmp/probe_gradle.log 2>&1 &

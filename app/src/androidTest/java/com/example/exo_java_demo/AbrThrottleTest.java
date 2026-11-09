@@ -104,10 +104,16 @@ public class AbrThrottleTest {
         // 封顶 576p：720p 分片 ~2.4MB 在 800kbps 下叠加并发音频即贴近 30s 读超时，
         // 576p 分片 ~1.57MB(~16s) 留足余量；≥480 断言仍由 576p 满足，180↔576
         // 间的升降档保持真实自适应。
+        // 并清除视口约束：DefaultTrackSelector 默认按物理屏算"最小免放大铺屏档"
+        // （getMaxVideoPixelsToRetainForViewport），只让不超过其像素数的档位进自适应组；
+        // CI atd 模拟器小屏(~640x360)把 432p/576p 挡在组外——选集恒为 180~360p 五档，
+        // h=360 永不爬升（run 42536919418：全档 sup=true 而仅 ≤230400px 档 sel=true，
+        // est 44~109Mbps 也无济于事）。真机/大屏本不受影响，测试需与屏幕无关的确定性。
         scenario.onActivity(activity -> {
             Player player = playerOf(activity);
             player.setTrackSelectionParameters(player.getTrackSelectionParameters()
-                    .buildUpon().setMaxVideoSize(1024, 576).build());
+                    .buildUpon().setMaxVideoSize(1024, 576)
+                    .clearViewportSizeConstraints().build());
         });
         // 经宿主限速代理加载 DASH 多码率源（Big Buck Bunny，180p~576p）。
         // 输 URL 点加载（对话框随加载 dismiss），与手工流程 FR-1 一致。

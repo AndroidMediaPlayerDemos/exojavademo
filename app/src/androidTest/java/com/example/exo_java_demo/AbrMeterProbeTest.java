@@ -100,7 +100,8 @@ public class AbrMeterProbeTest {
         scenario.onActivity(activity -> {
             Player player = playerOf(activity);
             player.setTrackSelectionParameters(player.getTrackSelectionParameters()
-                    .buildUpon().setMaxVideoSize(1024, 576).build());
+                    .buildUpon().setMaxVideoSize(1024, 576)
+                    .clearViewportSizeConstraints().build());
         });
         onView(withId(R.id.btn_source)).perform(click());
         onView(withId(R.id.source_input)).inRoot(isDialog())
@@ -129,7 +130,9 @@ public class AbrMeterProbeTest {
                 androidx.media3.common.TrackSelectionParameters p =
                         player.getTrackSelectionParameters();
                 Log.i(TAG, "PARAMS maxVideo=" + p.maxVideoWidth + "x" + p.maxVideoHeight
-                        + " maxVBr=" + p.maxVideoBitrate);
+                        + " maxVBr=" + p.maxVideoBitrate
+                        + " viewport=" + p.viewportWidth + "x" + p.viewportHeight
+                        + " physLimit=" + p.isViewportSizeLimitedByPhysicalDisplaySize);
                 Log.i(TAG, "VITAL h=" + player.getVideoSize().height
                         + " est=" + lastEst.get() + "bps"
                         + " estEvents=" + estEvents.get()
