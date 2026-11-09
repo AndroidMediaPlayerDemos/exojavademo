@@ -90,13 +90,15 @@ jobs:
           nohup ./gradlew connectedDebugAndroidTest --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.example.exo_java_demo.AbrThrottleTest > /tmp/abr_gradle.log 2>&1 &
           # 轮询落盘再 grep（dash 无进程替换）；用例若提前 BUILD FAILED 立即跳出让诊断先行
           adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; n=0; until grep -q "HOLD:high" /tmp/abr_lc.txt || grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null; do sleep 3; n=$((n+1)); adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; if [ $n -gt 100 ]; then echo "::error::HOLD:high 超时（未爬升到≥480p）"; echo "--- gradle 日志尾 ---"; tail -60 /tmp/abr_gradle.log 2>/dev/null; echo "--- ABR_TEST logcat ---"; cat /tmp/abr_lc.txt; echo "--- 代理日志尾 ---"; tail -20 /tmp/abr_proxy.log; exit 1; fi; done
-          grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null && { echo "::error::ABR 用例在爬档阶段即失败"; tail -60 /tmp/abr_gradle.log; adb logcat -d -s ABR_TEST:I; exit 1; }
+          # 注意 grep -q 未命中时退出码 1：若写成 `grep -q X && {…exit 1}`，未命中会让整行
+          # 以 1 退出被 runner 判败（run 42554135260 HOLD:high 首次达成后即踩此坑）。必须 if 包裹。
+          if grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null; then echo "::error::ABR 用例在爬档阶段即失败"; tail -60 /tmp/abr_gradle.log; adb logcat -d -s ABR_TEST:I; exit 1; fi
           # 限速 800kbps：用例封顶 576p，在飞分片 ~1.57MB(~16s) < App 30s 读超时，
           # 又压住 270p 档(760+67=827k) 逼 ABR 降到 180p（≤240 断言）
           curl -sf "http://127.0.0.1:8801/__ctrl?bps=800000"
           adb shell settings put global abr_phase slow
           adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; n=0; until grep -q "HOLD:low" /tmp/abr_lc.txt || grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null; do sleep 3; n=$((n+1)); adb logcat -d -s ABR_TEST:I > /tmp/abr_lc.txt 2>/dev/null; if [ $n -gt 120 ]; then echo "::error::HOLD:low 超时（限速后未下调到≤240p）"; echo "--- gradle 日志尾 ---"; tail -60 /tmp/abr_gradle.log 2>/dev/null; echo "--- ABR_TEST logcat ---"; cat /tmp/abr_lc.txt; exit 1; fi; done
-          grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null && { echo "::error::ABR 用例在降档阶段即失败"; tail -60 /tmp/abr_gradle.log; adb logcat -d -s ABR_TEST:I; exit 1; }
+          if grep -q "BUILD FAILED" /tmp/abr_gradle.log 2>/dev/null; then echo "::error::ABR 用例在降档阶段即失败"; tail -60 /tmp/abr_gradle.log; adb logcat -d -s ABR_TEST:I; exit 1; fi
           curl -sf "http://127.0.0.1:8801/__ctrl?bps=0"
           adb shell settings put global abr_phase full
           # 不能用 pgrep -f "class=..."：本行自身的 sh -c 包装命令行就含该模式串，
