@@ -20,6 +20,8 @@
 - [ ] **T1.1 真机验收回归**（0.5–1 人日）
   范围：FR-1/FR-2 基础回归；FR-4 主界面 AIDL 结果显示与失败路径；FR-9 横屏播放、旋转、后台恢复；FR-10 WebView 加载与 Cookie 检测。弱网（限速）与坏地址场景各过一遍。
   产出：PRD 验收清单勾选 + 遗留问题清单。
+  **结果（2026-11-10）：可断言子集完成，真机项待用户执行**。`AcceptanceRegressionTest` 8 用例（本地 8/8 + CI run 42729513723 全绿）覆盖：FR-1 旋转不中断不重播、FR-2 倍速对勾与生效速度一致（重开对话框随迁）、FR-3 多码率列档 / 指定 180p 覆盖出画 / 选「自动」清覆盖回升、FR-4 自托管 `add(5,6)=11` 显示、FR-5 URL 即播 + 历史记录 + 一键清空、FR-8 坏源错误面板（仅错误码，FR-7 红线不泄 URL/异常详情）+ 换源恢复、FR-9 MediaPlayer 后台暂停 / 前台恢复（`@VisibleForTesting` 观测口）、FR-10 WebView 加载 / Cookie 检测负路径 / 返回键先回退网页历史。**实测抓出并修复 app 缺陷：倍速对话框对勾不随选档迁移**（`SpeedAdapter` 档位仅构造时传入，选档后只 `notifyDataSetChanged` 不更新 adapter → 重开对话框对勾停在 1.0x，即 FR-2 验收项；补 `setCurrentSpeed` 在回调同步）；附带修源/轨道对话框 WindowLeaked（局部 Dialog 挂字段、onDestroy 统一 dismiss）。坑留档：w3c bunny trailer 的 moov 在 11MB 文件尾（非 faststart），渐进式测试源选型必须校验 box 布局（ftyp 后直接 mdat 即中招）。
+  **真机遗留清单（需实体设备，勾 PRD 对应项）**：FR-1 冷启动 3s 出画面、`onDestroy` 释放无泄漏核查；FR-2 200ms 体感变速/音调、切档不中断手感；FR-3 与倍速同会话共存；FR-4 服务不可达/RemoteException 界面提示路径、unbind 生命周期；FR-5 杀进程历史留存、5s 错误提示时限；FR-6 真机弱网（蜂窝/飞行切换）；FR-8 手势与系统手势冲突手感、缓冲 UI 视觉确认；FR-9 出画面出声、旋转；FR-10 真实 SharePoint 租户登录 rtFa/FedAuth 阳性路径与 Cookie 不落日志核查；API 24–34 矩阵。
 
 - [ ] **T1.2 验收问题修复**（估时视 T1.1 结果而定）
   已知薄弱点：`MediaPlayerActivity` / `WebViewActivity` 错误处理仅有 `printStackTrace`（见 PRD 技术债）。

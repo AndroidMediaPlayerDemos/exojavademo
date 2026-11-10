@@ -156,7 +156,10 @@ SharePoint 文件直连 URL 受 Cookie 鉴权（`FedAuth` 会话 Cookie + `rtFa`
 
 - **测试源可用性（2026-11 实测）**：`gtv-videos-bucket` 整桶 403（原 TearsOfSteel/
   BigBuckBunny 等示例源全部失效）；当前预置源为 W3C Sintel 预告片（MP4）、
-  Apple BipBop（HLS 多码率）、Akamai BBB（DASH 多码率），均验证可达。
+  Apple BipBop（HLS 多码率）、Akamai BBB（DASH 多码率），均验证可达。渐进式 MP4
+  作测试源另需校验 faststart（moov 在文件头）：T1.1 实测某 bunny 示例 trailer 的
+  moov 在 11MB 文件尾，渐进式要整段下完才 READY，不可用作起播/加载时延类断言
+  （校验法：看文件头 box 序列，ftyp 后直接 mdat 即中招）。
 
 ## FAQ
 
