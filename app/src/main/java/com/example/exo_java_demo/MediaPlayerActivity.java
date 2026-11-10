@@ -8,6 +8,7 @@ import android.view.SurfaceView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatActivity;
 
 import java.io.IOException;
@@ -97,5 +98,11 @@ public class MediaPlayerActivity extends AppCompatActivity
             mediaPlayer.release();
             mediaPlayer = null;
         }
+    }
+
+    /** 仪器测试观测用（T1.1 生命周期断言）：当前实例，释放窗口期可能为 null。 */
+    @VisibleForTesting
+    MediaPlayer currentPlayer() {
+        return mediaPlayer;
     }
 }

@@ -23,6 +23,15 @@ public class SpeedAdapter extends RecyclerView.Adapter<SpeedAdapter.SpeedViewHol
         this.currentSpeed = currentSpeed;
     }
 
+    /**
+     * 当前生效档位更新（选档后调用）：对勾渲染依据 adapter 自己持有的档位，
+     * 只 notify 不更新它的话，重开对话框对勾仍停在构造时的档位
+     * （T1.1 验收实测抓出：选 2.0x 生效后重开对话框对勾仍在 1.0x）。
+     */
+    public void setCurrentSpeed(float currentSpeed) {
+        this.currentSpeed = currentSpeed;
+    }
+
     @NonNull
     @Override
     public SpeedViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {

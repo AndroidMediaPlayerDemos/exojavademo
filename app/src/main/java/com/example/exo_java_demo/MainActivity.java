@@ -58,6 +58,11 @@ public class MainActivity extends AppCompatActivity {
 
     private ExoPlayer player;
     private Dialog speedDialog;
+    private SpeedAdapter speedAdapter;
+    // T1.1：源/轨道对话框为方法内局部创建，Activity 销毁时仍在展示会 WindowLeaked
+    // （仪器测试收尾场景可稳定复现）——挂到字段，onDestroy 统一 dismiss。
+    private Dialog sourceDialog;
+    private Dialog tracksDialog;
     private final float[] speeds = new float[]{0.5f, 1f, 1.5f, 2f};
     private float currentSpeed = 1.0f; // 默认播放速度为1.0x
     private SourceRepository sourceRepository;
@@ -120,14 +125,17 @@ public class MainActivity extends AppCompatActivity {
         speedDialog.setContentView(R.layout.dialog_speed);
         RecyclerView recyclerView = speedDialog.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(new SpeedAdapter(speeds, speed -> {
+        speedAdapter = new SpeedAdapter(speeds, speed -> {
             if (player != null) {
                 player.setPlaybackParameters(new PlaybackParameters(speed));
                 currentSpeed = speed;
-                recyclerView.getAdapter().notifyDataSetChanged();
+                // 对勾同步迁移：adapter 渲染依据自身持有的档位，须一并更新
+                speedAdapter.setCurrentSpeed(speed);
+                speedAdapter.notifyDataSetChanged();
             }
             speedDialog.dismiss();
-        }, currentSpeed));
+        }, currentSpeed);
+        recyclerView.setAdapter(speedAdapter);
 
         findViewById(R.id.button).setOnClickListener(v -> speedDialog.show());
         findViewById(R.id.btn_source).setOnClickListener(v -> showSourceDialog());
@@ -234,7 +242,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSourceDialog() {
-        Dialog dialog = new Dialog(this);
+        sourceDialog = new Dialog(this);
+        Dialog dialog = sourceDialog;
         dialog.setContentView(R.layout.dialog_source);
         EditText input = dialog.findViewById(R.id.source_input);
         SourceAdapter adapter = new SourceAdapter(buildSourceRows(), this::loadSource);
@@ -473,7 +482,8 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.tracks_none, Toast.LENGTH_SHORT).show();
             return;
         }
-        Dialog dialog = new Dialog(this);
+        tracksDialog = new Dialog(this);
+        Dialog dialog = tracksDialog;
         dialog.setContentView(R.layout.dialog_speed); // 复用单列表布局
         RecyclerView recyclerView = dialog.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -602,9 +612,19 @@ public class MainActivity extends AppCompatActivity {
             unbindService(mConnection);
             serviceBound = false;
         }
+        // 展示中的对话框随窗口一并撤下，避免 WindowLeaked
+        dismissIfShowing(speedDialog);
+        dismissIfShowing(sourceDialog);
+        dismissIfShowing(tracksDialog);
         if (player != null) {
             player.release();
             player = null;
+        }
+    }
+
+    private static void dismissIfShowing(Dialog dialog) {
+        if (dialog != null && dialog.isShowing()) {
+            dialog.dismiss();
         }
     }
 }
