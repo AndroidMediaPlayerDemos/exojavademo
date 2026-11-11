@@ -2,7 +2,7 @@
 
 | 文档版本 | 发布日期 | 维护人 | 代码基线 | 读者 |
 |---|---|---|---|---|
-| v1.11 | 2026-11-10 | NuovoVita | `main`（T1.1 验收回归·可断言子集） | 开发团队 · 技术评审 |
+| v1.12 | 2026-11-11 | NuovoVita | `main`（T1.1 可断言子集补遗：FR-3 倍速共存） | 开发团队 · 技术评审 |
 
 > 基于 ExoPlayer 的 Android 原生视频播放验证项目 —— 从在线播放、播放控制，走向跨应用协作与企业视频源集成。
 
@@ -125,7 +125,7 @@
 
 - [x] 对多码率测试源可列出全部可选画质/音轨，含「自动」（模拟器实测）
 - [x] 手动指定后播放器切换至对应轨道；选「自动」恢复自适应逻辑（模拟器实测：指定 180p 覆盖出画 → 选「自动」覆盖清除、高度回升）
-- [ ] 与倍速功能共存，互不影响状态
+- [x] 与倍速功能共存，互不影响状态（模拟器实测：2.0x 下指定 180p 两态同持，换 0.5x 覆盖仍在）
 
 > 恢复实现时应参照官方 Track Selection 文档（见附录），避免回到旧的全量遍历写法。
 
@@ -306,3 +306,4 @@ T4.4 产出集成成本与限制清单：`docs/enterprise-integration-cost.md`�
 | v1.9 | 2026-11-08 | T3.3 最小仪器测试集在 CI 模拟器全绿（run 42447566302）：起播/倍速/源切换三用例 + `instrumented-tests` job（API 30 google_atd，KVM 需 `chmod 666 /dev/kvm`——20261101 批次 runner 镜像无 kvm 组归属，钉 ubuntu-24.04）；**测试抓出并修复 app 缺陷：`media3-exoplayer-hls/-dash` 未打包（DefaultMediaSourceFactory 反射装载可选模块，缺包编译不报错、运行时 ClassNotFoundException，此前 HLS/DASH 源在任何设备不可播）**；M3 完成门「测试集在 CI 运行」达成 |
 | v1.10 | 2026-11-09 | T3.1 FR-6 ABR 弱网实测在 CI 收口（`AbrThrottleTest`，run 42554954898，ABR 批次 9 个 run 后首次通过）：满速 ~10s 爬 576p → 800kbps 限速 ~60s 降档 180p 且持续播放（缓冲 46s→24s 触底即 25s 下切阈值）→ 解除 ~25s 恢复 576p，全阶梯经 logcat SIZE/WAIT 打点可回放；**实测抓出 app 缺陷：默认 8s 读超时使弱网在飞大分片必超时、重试耗尽致命 IDLE，读超时放宽 30s（连接超时维持 8s）**；模拟器限速通路不可用（`adb emu network speed` 交付失真、guest 内核缺整形模块），改自建宿主限速代理 `scripts/abr_shaper_proxy.py`（上游预取 + 令牌桶涓流，编排经 `__ctrl` 切速率）；**CI 档位冻结真根因为 media3 视口约束**（DefaultTrackSelector 按物理屏截断自适应组，atd 小屏 320x640 封顶 360p，与带宽无关），测试以 `clearViewportSizeConstraints()` 消除屏幕相关性；FR-6 三条验收全勾，真机弱网项并入 T1.1 |
 | v1.11 | 2026-11-10 | T1.1 验收回归·可断言子集交付：`AcceptanceRegressionTest` 8 用例（FR-1 旋转不中断 / FR-2 对勾一致 / FR-3 列档·180p 覆盖·选自动恢复 / FR-4 自托管 AIDL 结果 / FR-5 URL 即播·历史·清空 / FR-8 坏源面板仅错误码且换源恢复 / FR-9 MediaPlayer 后台暂停前台恢复 / FR-10 WebView 加载与返回回退）本地 8/8 + CI run 42729513723 全绿；**实测抓出并修复 app 缺陷：倍速对话框对勾不随选档迁移**（`SpeedAdapter` 档位仅构造时传入，补 `setCurrentSpeed` 回调同步）；附带修源/轨道对话框 WindowLeaked；对应验收项以（模拟器实测）勾选，真机遗留清单见 TASKS.md T1.1；同步对齐总览表 FR-6 状态与 M1–M3 里程碑行 |
+| v1.12 | 2026-11-11 | T1.1 补遗：FR-3 第三条「与倍速共存」经 `speedAndTrackOverride_coexist` 模拟器实测勾选（验收集 8→9 用例，本地 9/9 + CI run 42934895322 全绿）——该项原误归真机遗留清单，实为模拟器可断言；清单相应缩减，余项均为手感/体感/杀进程/租户登录/矩阵类 |
